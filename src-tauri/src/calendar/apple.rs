@@ -1,3 +1,5 @@
+#![cfg(target_os = "macos")]
+
 use crate::calendar::CalendarEvent;
 use eventkit::EventsManager;
 use chrono::{Local, TimeZone, Datelike};

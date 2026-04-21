@@ -1,15 +1,19 @@
 mod calendar;
 
 use calendar::CalendarEvent;
-use tauri::{Manager, LogicalPosition, Emitter};
+use tauri::{Manager, Emitter};
+#[cfg(target_os = "macos")]
+use tauri::LogicalPosition;
 use std::time::Duration;
 use tokio::time;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(target_os = "macos")]
-use cocoa::appkit::NSWindow;
+use cocoa::appkit::{NSWindow, NSApp, NSImage, NSApplication};
 #[cfg(target_os = "macos")]
-use cocoa::base::id;
+use cocoa::base::{id, nil};
+#[cfg(target_os = "macos")]
+use cocoa::foundation::NSString;
 
 #[cfg(target_os = "macos")]
 #[allow(non_upper_case_globals)]
@@ -45,7 +49,6 @@ async fn get_all_events() -> Result<Vec<CalendarEvent>, String> {
     #[cfg(target_os = "macos")]
     {
         println!("Calling Apple Calendar...");
-        // Synchronous call might block, so we log before/after
         match calendar::apple::fetch_apple_events() {
             Ok(events) => {
                 println!("Apple found {} events", events.len());
@@ -88,7 +91,6 @@ pub fn run() {
                     ns_window.setLevel_(NSStatusWindowLevel);
                     window.set_ignore_cursor_events(false).unwrap();
 
-                    // 독(Dock) 아이콘 강제 업데이트 시도
                     let icon_path = app.path().resource_dir().unwrap().join("icons/icon.icns");
                     if icon_path.exists() {
                         let ns_path = NSString::alloc(nil).init_str(icon_path.to_str().unwrap());
@@ -103,7 +105,9 @@ pub fn run() {
             let win = window.clone();
             tauri::async_runtime::spawn(async move {
                 let mut interval = time::interval(Duration::from_millis(16));
+                #[cfg(target_os = "macos")]
                 let mut current_x = 0.0;
+                #[cfg(target_os = "macos")]
                 let mut current_y = 0.0;
 
                 let mut last_moving_state = false;
@@ -141,7 +145,7 @@ pub fn run() {
                                         }
                                     }
 
-                                    current_x += dx * 0.04; // 따라오는 속도를 더 느리게 조정 (0.12 -> 0.04)
+                                    current_x += dx * 0.04;
                                     current_y += dy * 0.04;
                                     let _ = win.set_position(LogicalPosition::new(current_x + 20.0, current_y + 20.0));
                                 }
@@ -160,7 +164,7 @@ pub fn run() {
                                 let dx = target_x - current_x;
                                 let dy = target_y - current_y;
 
-                                if dx.abs() > 0.5 || dy.abs() > 0.5 {
+                                if dx.abs() > 1.0 || dy.abs() > 1.0 {
                                     is_moving = true;
                                     if dx > 0.0 {
                                         facing_right = true;
@@ -169,13 +173,12 @@ pub fn run() {
                                     }
                                 }
 
-                                current_x += dx * 0.02; // 복귀 속도를 3초 정도로 늦춤
+                                current_x += dx * 0.02;
                                 current_y += dy * 0.02;
                                 let _ = win.set_position(LogicalPosition::new(current_x, current_y));
                             }
                         }
 
-                        // 상태나 방향이 변경되었을 때만 이벤트 전송
                         if is_moving != last_moving_state || facing_right != last_facing_right {
                             #[derive(serde::Serialize, Clone)]
                             struct MovePayload {
@@ -185,6 +188,19 @@ pub fn run() {
                             let _ = win.emit("cat-move-state", MovePayload { is_moving, facing_right });
                             last_moving_state = is_moving;
                             last_facing_right = facing_right;
+                        }
+                    }
+
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        if last_moving_state {
+                             #[derive(serde::Serialize, Clone)]
+                            struct MovePayload {
+                                is_moving: bool,
+                                facing_right: bool,
+                            }
+                            let _ = win.emit("cat-move-state", MovePayload { is_moving: false, facing_right: last_facing_right });
+                            last_moving_state = false;
                         }
                     }
                 }
