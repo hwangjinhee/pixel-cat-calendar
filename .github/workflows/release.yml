@@ -27,6 +27,8 @@ jobs:
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin, aarch64-apple-darwin # 양쪽 아키텍처 모두 설치
 
       - name: install frontend dependencies
         run: npm install
@@ -37,6 +39,7 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: "Pixel Cat Calendar v__VERSION__"
-          releaseBody: "새로운 버전의 픽셀 고양이 캘린더가 배포되었습니다!"
-          releaseDraft: true
+          releaseBody: "모든 Mac(Intel/M1/M2) 및 Windows를 지원하는 범용 버전입니다!"
+          releaseDraft: false
           prerelease: false
+          args: --target universal-apple-darwin # 범용 빌드 옵션 추가
