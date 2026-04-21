@@ -23,16 +23,10 @@ jobs:
       - name: setup node
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 24 # 최신 노드 버전 사용
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
-
-      - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: install frontend dependencies
         run: npm install
@@ -41,7 +35,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__ # tauri.conf.json의 버전을 사용
+          tagName: v__VERSION__
           releaseName: "Pixel Cat Calendar v__VERSION__"
           releaseBody: "새로운 버전의 픽셀 고양이 캘린더가 배포되었습니다!"
           releaseDraft: true
