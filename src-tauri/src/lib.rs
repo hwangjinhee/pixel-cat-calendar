@@ -31,41 +31,27 @@ async fn get_all_events() -> Result<Vec<CalendarEvent>, String> {
     println!("--- Fetching all events ---");
     let mut all_events = Vec::new();
 
-    // 1. Google (Async)
-    println!("Calling Google Calendar...");
     if let Ok(events) = calendar::google::fetch_google_events().await {
-        println!("Google found {} events", events.len());
         all_events.extend(events);
     }
 
-    // 2. Outlook (Async)
-    println!("Calling Outlook Calendar...");
     if let Ok(events) = calendar::outlook::fetch_outlook_events().await {
-        println!("Outlook found {} events", events.len());
         all_events.extend(events);
     }
 
-    // 3. Apple (macOS Sync)
     #[cfg(target_os = "macos")]
     {
-        println!("Calling Apple Calendar...");
-        match calendar::apple::fetch_apple_events() {
-            Ok(events) => {
-                println!("Apple found {} events", events.len());
-                all_events.extend(events);
-            },
-            Err(e) => println!("Apple Calendar Error: {}", e),
+        if let Ok(events) = calendar::apple::fetch_apple_events() {
+            all_events.extend(events);
         }
     }
 
     all_events.sort_by(|a, b| a.start_time.cmp(&b.start_time));
-    println!("Total events found: {}", all_events.len());
     Ok(all_events)
 }
 
 #[tauri::command]
 fn set_cat_following(following: bool) {
-    println!("Cat following state changed to: {}", following);
     IS_FOLLOWING.store(following, Ordering::Relaxed);
 }
 
@@ -82,10 +68,6 @@ pub fn run() {
 
             #[cfg(target_os = "macos")]
             {
-                use cocoa::appkit::{NSApp, NSImage, NSApplication};
-                use cocoa::base::nil;
-                use cocoa::foundation::NSString;
-                
                 let ns_window = window.ns_window().unwrap() as id;
                 unsafe {
                     ns_window.setLevel_(NSStatusWindowLevel);
@@ -138,11 +120,8 @@ pub fn run() {
                                     
                                     if dx.abs() > 1.0 || dy.abs() > 1.0 {
                                         is_moving = true;
-                                        if dx > 0.0 {
-                                            facing_right = true;
-                                        } else if dx < -0.0 {
-                                            facing_right = false;
-                                        }
+                                        if dx > 0.0 { facing_right = true; } 
+                                        else if dx < 0.0 { facing_right = false; }
                                     }
 
                                     current_x += dx * 0.04;
@@ -166,11 +145,8 @@ pub fn run() {
 
                                 if dx.abs() > 1.0 || dy.abs() > 1.0 {
                                     is_moving = true;
-                                    if dx > 0.0 {
-                                        facing_right = true;
-                                    } else if dx < -0.0 {
-                                        facing_right = false;
-                                    }
+                                    if dx > 0.0 { facing_right = true; } 
+                                    else if dx < 0.0 { facing_right = false; }
                                 }
 
                                 current_x += dx * 0.02;
