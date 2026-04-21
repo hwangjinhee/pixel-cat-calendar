@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSCalendarsUsageDescription</key>
+    <string>This app needs access to your calendar to show upcoming events on the desktop.</string>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>This app needs full access to your calendar to show upcoming events on the desktop.</string>
+</dict>
+</plist>
