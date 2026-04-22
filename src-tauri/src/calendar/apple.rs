@@ -9,16 +9,23 @@ thread_local! {
     static MANAGER: RefCell<EventsManager> = RefCell::new(EventsManager::new());
 }
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static HAS_REQUESTED_ACCESS: AtomicBool = AtomicBool::new(false);
+
 pub fn fetch_apple_events() -> Result<Vec<CalendarEvent>, String> {
     MANAGER.with(|manager_cell| {
         let manager = manager_cell.borrow();
         
-        // Request access (usually stays granted for the session)
-        if let Err(e) = manager.request_access() {
-            return Err(format!("Calendar Access Denied: {:?}", e));
+        // 아직 권한 요청을 안 했다면 한 번만 시도
+        if !HAS_REQUESTED_ACCESS.load(Ordering::Relaxed) {
+            if let Err(e) = manager.request_access() {
+                return Err(format!("Calendar Access Denied: {:?}", e));
+            }
+            HAS_REQUESTED_ACCESS.store(true, Ordering::Relaxed);
         }
         
-        // 1. Search for all upcoming events starting from NOW until the end of today
+        // 현재 시간 및 검색 범위 설정
         let now = Local::now();
         let search_start = now; 
         let search_end = Local.with_ymd_and_hms(now.year(), now.month(), now.day(), 23, 59, 59).unwrap();
