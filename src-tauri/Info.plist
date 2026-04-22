@@ -2,9 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>NSCalendarsUsageDescription</key>
-    <string>This app needs access to your calendar to show upcoming events on the desktop.</string>
+    <key>NSCalendarUsageDescription</key>
+    <string>일정 알람을 제공하기 위해 캘린더 데이터를 읽습니다.</string>
     <key>NSCalendarsFullAccessUsageDescription</key>
-    <string>This app needs full access to your calendar to show upcoming events on the desktop.</string>
+    <string>일정 알람을 제공하기 위해 캘린더 데이터를 읽습니다.</string>
 </dict>
 </plist>
