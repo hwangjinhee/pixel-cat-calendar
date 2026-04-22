@@ -17,15 +17,23 @@ pub fn fetch_apple_events() -> Result<Vec<CalendarEvent>, String> {
     MANAGER.with(|manager_cell| {
         let manager = manager_cell.borrow();
         
-        // 아직 권한 요청을 안 했다면 한 번만 시도
-        if !HAS_REQUESTED_ACCESS.load(Ordering::Relaxed) {
-            if let Err(e) = manager.request_access() {
-                return Err(format!("Calendar Access Denied: {:?}", e));
+        // 1. 현재 권한 상태 확인 (이미 허용되었는지 확인)
+        // access_granted()는 내부적으로 현재 상태를 반환함
+        if !manager.access_granted() {
+            // 아직 허용되지 않았을 때만 요청
+            if !HAS_REQUESTED_ACCESS.load(Ordering::Relaxed) {
+                println!("Requesting Calendar Access...");
+                if let Err(e) = manager.request_access() {
+                    return Err(format!("Calendar Access Denied: {:?}", e));
+                }
+                HAS_REQUESTED_ACCESS.store(true, Ordering::Relaxed);
+            } else {
+                // 이미 요청했는데도 거부된 상태면 더 이상 묻지 않고 빈 목록 반환
+                return Ok(vec![]);
             }
-            HAS_REQUESTED_ACCESS.store(true, Ordering::Relaxed);
         }
         
-        // 현재 시간 및 검색 범위 설정
+        // 2. 현재 시간 및 검색 범위 설정
         let now = Local::now();
         let search_start = now; 
         let search_end = Local.with_ymd_and_hms(now.year(), now.month(), now.day(), 23, 59, 59).unwrap();

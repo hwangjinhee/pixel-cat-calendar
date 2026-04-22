@@ -34,6 +34,12 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "macOS": {
+      "infoPlist": {
+        "NSCalendarUsageDescription": "일정 알람을 제공하기 위해 캘린더 데이터를 읽습니다.",
+        "NSCalendarsFullAccessUsageDescription": "일정 알람을 제공하기 위해 캘린더 데이터를 읽습니다."
+      }
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
