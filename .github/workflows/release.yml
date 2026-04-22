@@ -42,9 +42,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__
-          releaseName: "Pixel Cat Calendar v__VERSION__"
-          releaseBody: "모든 Mac(Intel/M1) 및 Windows를 지원하는 업데이트 버전입니다."
+          tagName: ${{ github.ref_name }} # v__VERSION__ 대신 실제 푸시한 태그 사용
+          releaseName: "Pixel Cat Calendar ${{ github.ref_name }}"
+          releaseBody: "업데이트된 픽셀 고양이 캘린더입니다. (${{ github.ref_name }})"
           releaseDraft: false
           prerelease: false
-          args: ${{ matrix.args }} # 각 플랫폼에 맞는 인자값 적용
+          args: ${{ matrix.args }}
