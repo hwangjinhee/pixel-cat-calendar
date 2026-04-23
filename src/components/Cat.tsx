@@ -31,13 +31,15 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
         return () => clearTimeout(timer);
       }
     } else {
-      // 멈췄고 평상시라면 앉기
-      if (state === "WALKING" || state === "STANDING_UP") {
-        setState("SITTING_DOWN");
-        const timer = setTimeout(() => setState("SITTING"), 400);
+      // 멈췄고 평상시(Awake)라면 바로 앉지 않고 서서 대기 (자연스러운 연결)
+      if (state === "WALKING") {
+        setState("STANDING_UP");
+      } else if (state === "STANDING_UP") {
+        // 서서 대기하는 시간을 길게 주거나 계속 유지
+        // 여기서는 앉기까지의 지연 시간을 대폭 늘리거나, 
+        // 깨어있을 때는 계속 서 있게 하려면 setState("SITTING")으로 가는 타이머를 제거하면 됩니다.
+        const timer = setTimeout(() => setState("SITTING"), 2000); // 2초 뒤에 앉도록 변경
         return () => clearTimeout(timer);
-      } else {
-        setState("SITTING");
       }
     }
   }, [isMoving, isSleeping]);
