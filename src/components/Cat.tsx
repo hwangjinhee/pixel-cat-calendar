@@ -45,7 +45,7 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
   const getCatDisplay = () => {
     switch (state) {
       case "WALKING":
-        return { src: "/walking_cat.gif", scaleY: 1, y: 0 };
+        return { src: "/walking_cat_v2.gif", scaleY: 1, y: 0 };
       case "STANDING_UP":
       case "SITTING_DOWN":
         return { src: "/standing_cat.png", scaleY: 1, y: 0 };
