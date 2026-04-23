@@ -68,13 +68,13 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
         onCatClick();
       }}
       className="cursor-pointer relative flex items-center justify-center"
-      style={{ width: "120px", height: "120px" }}
+      style={{ width: "96px", height: "96px" }}
     >
       <motion.div
         animate={{ 
           y: display.y,
-          scaleX: facingRight ? -1.2 : 1.2,
-          scaleY: 1.2
+          scaleX: facingRight ? -1.0 : 1.0,
+          scaleY: 1.0
         }}
         transition={{ duration: 0.3 }}
         className="w-full h-full flex items-center justify-center"
@@ -95,13 +95,13 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
       {/* 그림자 */}
       <div style={{
         position: 'absolute',
-        bottom: '30px',  // 더 위로 (고양이 발 쪽으로)
-        left: '25px',    // 더 오른쪽으로
-        width: '70px',
-        height: '8px',
+        bottom: '22px',  
+        left: '20px',    
+        width: '56px',
+        height: '6px',
         backgroundColor: 'rgba(0,0,0,0.15)',
         borderRadius: '50%',
-        filter: 'blur(5px)',
+        filter: 'blur(4px)',
         zIndex: -1
       }} />
     </motion.div>

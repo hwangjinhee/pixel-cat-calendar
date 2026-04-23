@@ -139,7 +139,7 @@ function App() {
     <div className="fixed inset-0 flex items-center justify-center bg-transparent select-none pointer-events-none">
       
       {/* 1. 고양이 레이어 - 화면 정중앙 고정 */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto z-10 w-[120px] h-[120px] flex items-center justify-center">
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto z-10 w-[96px] h-[96px] flex items-center justify-center">
         <Cat 
           onCatClick={() => setShowCalendar(!showCalendar)} 
           isSleeping={!hasEvents}
@@ -163,7 +163,7 @@ function App() {
           style={{
             position: 'absolute',
             left: '0px',
-            top: '12px',    // 고양이 중심(0,0)에서 12px 아래 (고양이 배 밑에 바짝 밀착)
+            top: '36px',    // 고양이 중심에서 발밑을 지나 10px 더 아래로
             transform: 'translateX(-50%)', // 말풍선 자체를 정중앙 정렬
             width: 'max-content',
             height: 'max-content',
