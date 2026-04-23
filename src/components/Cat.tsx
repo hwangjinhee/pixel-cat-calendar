@@ -45,17 +45,18 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
   const getCatDisplay = () => {
     switch (state) {
       case "WALKING":
-        return { src: "/walking_cat_v2.gif", scaleY: 1, y: 0 };
+        return { src: "/walking_cat_v2.gif?v=2", scaleY: 1, y: 0 };
       case "STANDING_UP":
       case "SITTING_DOWN":
-        return { src: "/standing_cat.png", scaleY: 1, y: 0 };
+        // 서있는 상태에서도 새 고양이 이미지를 사용하도록 걷기 이미지 사용
+        return { src: "/walking_cat_v2.gif?v=2", scaleY: 1, y: 0 };
       case "SITTING":
-        return { src: "/sitting_cat.gif", scaleY: 1, y: 5 }; // sitting_cat.gif 적용
+        return { src: "/sitting_cat.gif?v=2", scaleY: 1, y: 5 };
       case "LYING_DOWN":
       case "SLEEPING":
-        return { src: "/lying_cat.gif", scaleY: 1, y: 15 }; // lying_cat.gif 적용
+        return { src: "/lying_cat.gif?v=2", scaleY: 1, y: 15 };
       default:
-        return { src: "/sitting_cat.gif", scaleY: 1, y: 5 };
+        return { src: "/sitting_cat.gif?v=2", scaleY: 1, y: 5 };
     }
   };
 
