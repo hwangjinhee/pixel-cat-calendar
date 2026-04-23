@@ -91,10 +91,6 @@ pub fn run() {
                 let mut current_x = 0.0;
                 #[cfg(target_os = "macos")]
                 let mut current_y = 0.0;
-                #[cfg(target_os = "macos")]
-                let mut vel_x = 0.0;
-                #[cfg(target_os = "macos")]
-                let mut vel_y = 0.0;
 
                 let mut last_moving_state = false;
                 let mut last_facing_right = false;
@@ -122,7 +118,6 @@ pub fn run() {
                                         current_x = target_x; current_y = target_y;
                                     }
                                     
-                                    // Ease-in-out logic with physics
                                     let dx = target_x - current_x;
                                     let dy = target_y - current_y;
                                     
@@ -130,18 +125,18 @@ pub fn run() {
                                         is_moving = true;
                                         if dx > 0.0 { facing_right = true; } 
                                         else if dx < 0.0 { facing_right = false; }
-
-                                        // Acceleration
-                                        vel_x += dx * 0.005;
-                                        vel_y += dy * 0.005;
                                     }
 
-                                    // Friction (Damping)
-                                    vel_x *= 0.92;
-                                    vel_y *= 0.92;
+                                    // 이전의 부드러운 Lerp 방식으로 복구 (0.04 -> 0.06으로 상향하여 끝에 더 빨리 도달)
+                                    // 거리가 가까울수록 비율을 살짝 높여 안착 속도 개선
+                                    let lerp_factor = if dx.abs() < 10.0 && dy.abs() < 10.0 { 0.15 } else { 0.06 };
+                                    
+                                    current_x += dx * lerp_factor;
+                                    current_y += dy * lerp_factor;
 
-                                    current_x += vel_x;
-                                    current_y += vel_y;
+                                    // 아주 가까워지면 강제 고정 (떨림 방지)
+                                    if dx.abs() < 0.5 { current_x = target_x; }
+                                    if dy.abs() < 0.5 { current_y = target_y; }
                                     
                                     let _ = win.set_position(LogicalPosition::new(current_x, current_y));
                                 }
@@ -164,16 +159,16 @@ pub fn run() {
                                     is_moving = true;
                                     if dx > 0.0 { facing_right = true; } 
                                     else if dx < 0.0 { facing_right = false; }
-
-                                    vel_x += dx * 0.003;
-                                    vel_y += dy * 0.003;
                                 }
 
-                                vel_x *= 0.90;
-                                vel_y *= 0.90;
+                                // 집으로 돌아갈 때도 부드럽게 복구
+                                let lerp_factor = if dx.abs() < 10.0 && dy.abs() < 10.0 { 0.1 } else { 0.04 };
+                                current_x += dx * lerp_factor;
+                                current_y += dy * lerp_factor;
 
-                                current_x += vel_x;
-                                current_y += vel_y;
+                                if dx.abs() < 0.5 { current_x = target_x; }
+                                if dy.abs() < 0.5 { current_y = target_y; }
+
                                 let _ = win.set_position(LogicalPosition::new(current_x, current_y));
                             }
                         }
