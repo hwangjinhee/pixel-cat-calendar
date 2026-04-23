@@ -163,7 +163,7 @@ function App() {
           style={{
             position: 'absolute',
             left: '0px',
-            top: '36px',    // 고양이 중심에서 발밑을 지나 10px 더 아래로
+            top: '24px',    // 고양이 중심에서 약간 아래로 조정 (너무 멀지 않게)
             transform: 'translateX(-50%)', // 말풍선 자체를 정중앙 정렬
             width: 'max-content',
             height: 'max-content',
