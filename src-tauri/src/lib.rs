@@ -91,6 +91,10 @@ pub fn run() {
                 let mut current_x = 0.0;
                 #[cfg(target_os = "macos")]
                 let mut current_y = 0.0;
+                #[cfg(target_os = "macos")]
+                let mut vel_x = 0.0;
+                #[cfg(target_os = "macos")]
+                let mut vel_y = 0.0;
 
                 let mut last_moving_state = false;
                 let mut last_facing_right = false;
@@ -111,22 +115,35 @@ pub fn run() {
                             if let Ok(source) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState) {
                                 if let Ok(event) = CGEvent::new(source) {
                                     let point = event.location();
+                                    let target_x = point.x + 20.0;
+                                    let target_y = point.y + 20.0;
+
                                     if current_x == 0.0 && current_y == 0.0 {
-                                        current_x = point.x; current_y = point.y;
+                                        current_x = target_x; current_y = target_y;
                                     }
                                     
-                                    let dx = point.x - current_x;
-                                    let dy = point.y - current_y;
+                                    // Ease-in-out logic with physics
+                                    let dx = target_x - current_x;
+                                    let dy = target_y - current_y;
                                     
                                     if dx.abs() > 1.0 || dy.abs() > 1.0 {
                                         is_moving = true;
                                         if dx > 0.0 { facing_right = true; } 
                                         else if dx < 0.0 { facing_right = false; }
+
+                                        // Acceleration
+                                        vel_x += dx * 0.005;
+                                        vel_y += dy * 0.005;
                                     }
 
-                                    current_x += dx * 0.04;
-                                    current_y += dy * 0.04;
-                                    let _ = win.set_position(LogicalPosition::new(current_x + 20.0, current_y + 20.0));
+                                    // Friction (Damping)
+                                    vel_x *= 0.92;
+                                    vel_y *= 0.92;
+
+                                    current_x += vel_x;
+                                    current_y += vel_y;
+                                    
+                                    let _ = win.set_position(LogicalPosition::new(current_x, current_y));
                                 }
                             }
                         } else {
@@ -147,10 +164,16 @@ pub fn run() {
                                     is_moving = true;
                                     if dx > 0.0 { facing_right = true; } 
                                     else if dx < 0.0 { facing_right = false; }
+
+                                    vel_x += dx * 0.003;
+                                    vel_y += dy * 0.003;
                                 }
 
-                                current_x += dx * 0.02;
-                                current_y += dy * 0.02;
+                                vel_x *= 0.90;
+                                vel_y *= 0.90;
+
+                                current_x += vel_x;
+                                current_y += vel_y;
                                 let _ = win.set_position(LogicalPosition::new(current_x, current_y));
                             }
                         }
