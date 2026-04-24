@@ -15,8 +15,8 @@
       {
         "label": "main",
         "title": "pixel-cat-calendar",
-        "width": 150,
-        "height": 150,
+        "width": 250,
+        "height": 250,
         "transparent": true,
         "decorations": false,
         "alwaysOnTop": true,

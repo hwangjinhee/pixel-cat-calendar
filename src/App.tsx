@@ -144,24 +144,24 @@ function App() {
           <div 
             style={{
               position: 'absolute',
-              top: '-30px',
-              right: '-40px',
+              bottom: '-20px', // 고양이 발밑 우측
+              right: '-30px',
               zIndex: 100,
               pointerEvents: 'auto'
             }}
           >
             <button 
               onClick={handleManualSleep}
-              className="relative bg-white border-2 border-black px-3 py-1 text-[11px] font-bold hover:bg-gray-100 transition-colors shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
+              className="relative bg-white border-2 border-black px-3 py-1 text-[11px] font-bold hover:bg-gray-100 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
               style={{ 
                 imageRendering: 'pixelated',
                 cursor: 'pointer'
               }}
             >
               재우기
-              {/* 말풍선 꼬리 */}
+              {/* 말풍선 꼬리 (위쪽을 향함) */}
               <div 
-                className="absolute -bottom-2 left-2 w-2 h-2 bg-white border-b-2 border-r-2 border-black rotate-45"
+                className="absolute -top-2 left-2 w-2 h-2 bg-white border-t-2 border-l-2 border-black rotate-45"
               />
             </button>
           </div>
