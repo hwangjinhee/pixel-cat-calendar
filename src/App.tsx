@@ -141,13 +141,30 @@ function App() {
         
         {/* 수동 재우기 버튼 (깨어있을 때만 노출) */}
         {hasEvents && (
-          <button 
-            onClick={handleManualSleep}
-            className="absolute -right-12 top-0 bg-white border-2 border-black px-2 py-1 text-[10px] font-bold hover:bg-gray-200 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] pointer-events-auto"
-            style={{ imageRendering: 'pixelated' }}
+          <div 
+            style={{
+              position: 'absolute',
+              top: '-30px',
+              right: '-40px',
+              zIndex: 100,
+              pointerEvents: 'auto'
+            }}
           >
-            재우기
-          </button>
+            <button 
+              onClick={handleManualSleep}
+              className="relative bg-white border-2 border-black px-3 py-1 text-[11px] font-bold hover:bg-gray-100 transition-colors shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
+              style={{ 
+                imageRendering: 'pixelated',
+                cursor: 'pointer'
+              }}
+            >
+              재우기
+              {/* 말풍선 꼬리 */}
+              <div 
+                className="absolute -bottom-2 left-2 w-2 h-2 bg-white border-b-2 border-r-2 border-black rotate-45"
+              />
+            </button>
+          </div>
         )}
       </div>
 
