@@ -43,7 +43,22 @@ export const CalendarWidget = ({ isVisible, onClose }: CalendarWidgetProps) => {
         >
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Schedule</h2>
-            <button onClick={onClose} className="text-white/20 hover:text-white/100">&times;</button>
+            <div className="flex gap-2">
+              <button 
+                onClick={async () => {
+                  try {
+                    await invoke("google_login");
+                    fetchEvents();
+                  } catch (e) {
+                    console.error("Login failed:", e);
+                  }
+                }}
+                className="text-[9px] bg-white/10 hover:bg-white/20 text-white px-2 py-0.5 rounded border border-white/10 transition-colors"
+              >
+                G Login
+              </button>
+              <button onClick={onClose} className="text-white/20 hover:text-white/100">&times;</button>
+            </div>
           </div>
 
           <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
