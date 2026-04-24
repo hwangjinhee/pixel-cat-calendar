@@ -14,8 +14,18 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
   const [state, setState] = useState<CatState>("SITTING");
 
   useEffect(() => {
+    // 1. 취침 모드(isSleeping=true) 최우선 처리
+    if (isSleeping) {
+      if (state !== "SLEEPING" && state !== "LYING_DOWN") {
+        setState("LYING_DOWN");
+        const timer = setTimeout(() => setState("SLEEPING"), 600);
+        return () => clearTimeout(timer);
+      }
+      return;
+    }
+
+    // 2. 활성 모드 처리
     if (isMoving) {
-      // 움직이는 중이라면(복귀 중 포함) 걷기 상태 우선
       if (state !== "WALKING" && state !== "STANDING_UP") {
         setState("STANDING_UP");
         const timer = setTimeout(() => setState("WALKING"), 400);
@@ -23,15 +33,7 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
       } else {
         setState("WALKING");
       }
-    } else if (isSleeping) {
-      // 멈췄고 취침 모드라면 눕기
-      if (state !== "SLEEPING" && state !== "LYING_DOWN") {
-        setState("LYING_DOWN");
-        const timer = setTimeout(() => setState("SLEEPING"), 600);
-        return () => clearTimeout(timer);
-      }
     } else {
-      // 멈췄고 평상시라면 앉기
       if (state === "WALKING" || state === "STANDING_UP") {
         setState("SITTING_DOWN");
         const timer = setTimeout(() => setState("SITTING"), 400);
@@ -40,7 +42,7 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
         setState("SITTING");
       }
     }
-  }, [isMoving, isSleeping]);
+  }, [isMoving, isSleeping, state]); // state도 의존성에 추가하여 시퀀스 보장
 
   const getCatDisplay = () => {
     switch (state) {
@@ -48,7 +50,6 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
         return { src: "/walking_cat_v2.gif?v=2", scaleY: 1, y: 0 };
       case "STANDING_UP":
       case "SITTING_DOWN":
-        // 서있는 상태에서도 새 고양이 이미지를 사용하도록 걷기 이미지 사용
         return { src: "/walking_cat_v2.gif?v=2", scaleY: 1, y: 0 };
       case "SITTING":
         return { src: "/sitting_cat.gif?v=2", scaleY: 1, y: 5 };
@@ -92,18 +93,10 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
         />
       </motion.div>
 
-      {/* 취침 모드 말풍선 제거됨 */}
-      {/* 그림자 */}
       <div style={{
-        position: 'absolute',
-        bottom: '22px',  
-        left: '20px',    
-        width: '56px',
-        height: '6px',
-        backgroundColor: 'rgba(0,0,0,0.15)',
-        borderRadius: '50%',
-        filter: 'blur(4px)',
-        zIndex: -1
+        position: 'absolute', bottom: '22px', left: '20px',    
+        width: '56px', height: '6px', backgroundColor: 'rgba(0,0,0,0.15)',
+        borderRadius: '50%', filter: 'blur(4px)', zIndex: -1
       }} />
     </motion.div>
   );
