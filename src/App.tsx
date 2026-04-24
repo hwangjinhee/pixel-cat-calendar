@@ -19,6 +19,7 @@ function App() {
   const [nyangMessage, setNyangMessage] = useState("");
   const [isActuallyMoving, setIsActuallyMoving] = useState(false);
   const [facingRight, setFacingRight] = useState(false);
+  const [isManualSleep, setIsManualSleep] = useState(false); // 수동 취침 상태
 
   // Tauri 백엔드에서 전송하는 움직임 상태 리스닝
   useEffect(() => {
@@ -49,8 +50,6 @@ function App() {
       const events = await invoke<CalendarEvent[]>("get_all_events");
       const now = new Date().getTime();
       
-      console.log(`--- [${new Date().toLocaleTimeString()}] Checking ${events.length} events ---`);
-      
       let foundActive = false;
       let targetEvent: CalendarEvent | null = null;
 
@@ -59,45 +58,43 @@ function App() {
         const diffMs = startTime - now;
         const diffMins = diffMs / 60000;
 
-        // 시작 10분 전 ~ 시작 직전(0분) 사이만 활성
-        // diffMins가 0 이하(과거)이거나 10 초과(먼 미래)면 무시
         if (diffMins > 0 && diffMins <= 10) {
-          console.log(`>> ACTIVE: ${event.title} (Starts in ${diffMins.toFixed(2)}m)`);
           foundActive = true;
           targetEvent = event;
           break; 
-        } else {
-          if (diffMins <= 0 && diffMins > -10) {
-            console.log(`>> PASSED: ${event.title} (Started ${Math.abs(diffMins).toFixed(2)}m ago)`);
-          }
         }
       }
       
       if (foundActive && targetEvent) {
-        setHasEvents(true);
-        setNextEvent(targetEvent);
+        // 수동 취침 중인데 같은 일정이면 깨우지 않음
+        const isSameEvent = nextEventRef.current && 
+                            nextEventRef.current.title === targetEvent.title && 
+                            nextEventRef.current.start_time === targetEvent.start_time;
+
+        if (!isManualSleep || !isSameEvent) {
+          setHasEvents(true);
+          setNextEvent(targetEvent);
+          if (!isSameEvent) setIsManualSleep(false); // 새로운 일정이면 수동 취침 해제
+        }
       } else {
-        console.log(">> NO ACTIVE EVENTS: Sleeping...");
         setHasEvents(false);
         setNextEvent(null);
-        setShowNyangBubble(false);
-        setNyangMessage("");
+        setIsManualSleep(false); // 활성 일정 없으면 수동 취침 초기화
       }
       
-      await invoke("set_cat_following", { following: foundActive });
+      // 실제 고양이가 깨어있는지(hasEvents)에 따라 팔로잉 결정
+      await invoke("set_cat_following", { following: hasEventsRef.current });
     } catch (err) {
       console.error("CheckEvents Error:", err);
-      // 에러 발생 시 안전하게 취침 모드로 전환
       setHasEvents(false);
-      setNextEvent(null);
-      setShowNyangBubble(false);
     }
   };
 
-  // hasEvents 상태 변경 감지 로그
-  useEffect(() => {
-    console.log("Cat State:", hasEvents ? "AWAKE 🐱" : "SLEEPING 😴");
-  }, [hasEvents]);
+  const handleManualSleep = async () => {
+    setIsManualSleep(true);
+    setHasEvents(false);
+    await invoke("set_cat_following", { following: false });
+  };
 
   // 1. 일정 체크 타이머 (5초)
   useEffect(() => {
@@ -114,7 +111,6 @@ function App() {
 
       if (!currentHasEvents || !currentEvent) return;
 
-      // 남은 시간 계산
       const startTime = new Date(currentEvent.start_time);
       const now = new Date();
       const diffMs = startTime.getTime() - now.getTime();
@@ -123,31 +119,39 @@ function App() {
       setNyangMessage(`${currentEvent.title} 시작까지 ${diffMins}분 남았다냥!`);
       setShowNyangBubble(true);
 
-      // 8초 뒤에 닫기
       setTimeout(() => setShowNyangBubble(false), 8000);
     };
 
-    // 처음 한 번 실행
     showBubble();
-
-    // 15초마다 실행 (nextEvent 변경에 의해 재시작되지 않음)
     const interval = setInterval(showBubble, 15000);
     return () => clearInterval(interval);
-  }, []); // 의존성 배열을 비워 타이머가 한 번만 설정되게 함
+  }, []);
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-transparent select-none pointer-events-none">
       
-      {/* 1. 고양이 레이어 - 화면 정중앙 고정 */}
+      {/* 1. 고양이 레이어 */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto z-10 w-[96px] h-[96px] flex items-center justify-center">
         <Cat 
           onCatClick={() => setShowCalendar(!showCalendar)} 
           isSleeping={!hasEvents}
           isMoving={isActuallyMoving}
           facingRight={facingRight}
-        />      </div>
+        />      
+        
+        {/* 수동 재우기 버튼 (깨어있을 때만 노출) */}
+        {hasEvents && (
+          <button 
+            onClick={handleManualSleep}
+            className="absolute -right-12 top-0 bg-white border-2 border-black px-2 py-1 text-[10px] font-bold hover:bg-gray-200 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] pointer-events-auto"
+            style={{ imageRendering: 'pixelated' }}
+          >
+            재우기
+          </button>
+        )}
+      </div>
 
-      {/* 2. 말풍선 레이어 - 고양이 정중앙 아래쪽에 배치 */}
+      {/* 2. 말풍선 레이어 */}
       <div 
         style={{
           position: 'absolute',
@@ -163,8 +167,8 @@ function App() {
           style={{
             position: 'absolute',
             left: '0px',
-            top: '24px',    // 고양이 중심에서 약간 아래로 조정 (너무 멀지 않게)
-            transform: 'translateX(-50%)', // 말풍선 자체를 정중앙 정렬
+            top: '24px',
+            transform: 'translateX(-50%)',
             width: 'max-content',
             height: 'max-content',
             overflow: 'visible',
