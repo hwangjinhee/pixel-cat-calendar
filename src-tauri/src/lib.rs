@@ -144,12 +144,22 @@ pub fn run() {
                             } else { continue; }
                         } else {
                             if let Ok(Some(monitor)) = win.primary_monitor() {
-                                let screen_size = monitor.size().to_logical::<f64>(monitor.scale_factor());
-                                // 고양이가 화면 우측 하단 구석에서 더 위/왼쪽으로 이동 (150 -> 160)
-                                target_x = screen_size.width - 160.0;
-                                target_y = screen_size.height - 160.0;
-                            } else { continue; }
+                                let scale_factor = monitor.scale_factor();
+                                let size = monitor.size();
+                                // 물리적 크기를 논리적 크기로 변환
+                                let screen_width = size.width as f64 / scale_factor;
+                                let screen_height = size.height as f64 / scale_factor;
+
+                                // 고양이가 화면 우측 하단 구석에 위치하도록 설정 (충분한 여백 확보)
+                                target_x = screen_width - 160.0;
+                                target_y = screen_height - 160.0;
+                            } else { 
+                                // 모니터 정보를 가져오지 못할 경우 기본값 사용 (일반적인 해상도 기준)
+                                target_x = 1600.0;
+                                target_y = 900.0;
+                            }
                         }
+
 
                         if current_x == 0.0 && current_y == 0.0 {
                             current_x = target_x; current_y = target_y;
