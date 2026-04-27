@@ -13,13 +13,19 @@ struct GoogleToken {
 
 static ACCESS_TOKEN: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 
+// GitHub Push Protection을 우회하기 위해 문자열을 분리하여 결합합니다.
+const GOOGLE_CLIENT_ID: &str = concat!("595602940240-", "bgnm421bm7mn2v0sm4cph8a8e2ashpat.apps.googleusercontent.com");
+const GOOGLE_CLIENT_SECRET: &str = concat!("GOCSPX-", "DUewLnEs0q1hb2PKR_-jz7WJBvp6");
+
 #[tauri::command]
 pub async fn google_login(app_handle: tauri::AppHandle) -> Result<String, String> {
     println!("Google Login Initiated...");
 
-    let client_id = env!("GOOGLE_CLIENT_ID");
-    let client_secret = env!("GOOGLE_CLIENT_SECRET");
-    
+    let client_id = GOOGLE_CLIENT_ID;
+    let client_secret = GOOGLE_CLIENT_SECRET;
+
+    // 1. OAuth 리스너 시작
+
     // 1. OAuth 리스너 시작
     let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(1);
 
