@@ -69,8 +69,8 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
         e.stopPropagation();
         onCatClick();
       }}
-      className="cursor-pointer relative flex items-center justify-center"
-      style={{ width: "96px", height: "96px" }}
+      className="cursor-pointer relative flex items-center justify-center pointer-events-auto"
+      style={{ width: "96px", height: "96px", cursor: 'pointer' }}
     >
       <motion.div
         animate={{ 
@@ -92,12 +92,6 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
           }}
         />
       </motion.div>
-
-      <div style={{
-        position: 'absolute', bottom: '22px', left: '20px',    
-        width: '56px', height: '6px', backgroundColor: 'rgba(0,0,0,0.15)',
-        borderRadius: '50%', filter: 'blur(4px)', zIndex: -1
-      }} />
     </motion.div>
   );
 };

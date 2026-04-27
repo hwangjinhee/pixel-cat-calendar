@@ -78,7 +78,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_oauth::init())
-        .invoke_handler(tauri::generate_handler![get_all_events, sync_state, mark_manual_sleep])
+        .invoke_handler(tauri::generate_handler![
+            get_all_events, 
+            sync_state, 
+            mark_manual_sleep,
+            calendar::google::google_login,
+            calendar::google::google_logout,
+            calendar::google::is_google_logged_in
+        ])
         .setup(|app| {
             let main_win = app.get_webview_window("main").unwrap();
             let btn_win = app.get_webview_window("sleep-button").unwrap();

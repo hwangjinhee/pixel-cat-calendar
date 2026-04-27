@@ -16,8 +16,19 @@ interface CalendarWidgetProps {
 export const CalendarWidget = ({ isVisible, onClose }: CalendarWidgetProps) => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const checkLoginStatus = async () => {
+    try {
+      const loggedIn = await invoke<boolean>("is_google_logged_in");
+      setIsLoggedIn(loggedIn);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchEvents = async () => {
+    setLoading(true);
     try {
       const allEvents = await invoke<CalendarEvent[]>("get_all_events");
       setEvents(allEvents);
@@ -29,8 +40,32 @@ export const CalendarWidget = ({ isVisible, onClose }: CalendarWidgetProps) => {
   };
 
   useEffect(() => {
-    if (isVisible) fetchEvents();
+    if (isVisible) {
+      checkLoginStatus();
+      fetchEvents();
+    }
   }, [isVisible]);
+
+  const handleLogin = async () => {
+    try {
+      await invoke("google_login");
+      await checkLoginStatus();
+      fetchEvents();
+      onClose(); // 로그인 성공 시 위젯 닫기
+    } catch (e) {
+      console.error("Login failed:", e);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await invoke("google_logout");
+      await checkLoginStatus();
+      setEvents([]);
+    } catch (e) {
+      console.error("Logout failed:", e);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -39,44 +74,54 @@ export const CalendarWidget = ({ isVisible, onClose }: CalendarWidgetProps) => {
           initial={{ opacity: 0, scale: 0.8, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: 10 }}
-          className="absolute bottom-16 w-56 bg-black/80 backdrop-blur-lg rounded-2xl p-4 border border-white/20 shadow-2xl z-50"
+          style={{ width: 'max-content' }}
+          className="bg-black/80 backdrop-blur-lg rounded-2xl p-3 border border-white/20 shadow-2xl z-50 flex items-center justify-center"
         >
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Schedule</h2>
-            <div className="flex gap-2">
-              <button 
-                onClick={async () => {
-                  try {
-                    await invoke("google_login");
-                    fetchEvents();
-                  } catch (e) {
-                    console.error("Login failed:", e);
-                  }
-                }}
-                className="text-[9px] bg-white/10 hover:bg-white/20 text-white px-2 py-0.5 rounded border border-white/10 transition-colors"
-              >
-                G Login
-              </button>
-              <button onClick={onClose} className="text-white/20 hover:text-white/100">&times;</button>
-            </div>
-          </div>
-
-          <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
-            {loading ? (
-              <div className="text-[10px] text-white/30 text-center py-2">Loading...</div>
-            ) : events.length === 0 ? (
-              <div className="text-[10px] text-white/30 text-center py-2">No events</div>
-            ) : (
-              events.map((event, idx) => (
-                <div key={idx} className="bg-white/5 rounded-lg p-2 border border-white/5">
-                  <div className="text-[9px] font-bold text-orange-400 mb-1">
-                    {new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                  <div className="text-[10px] text-white/90 truncate font-medium">{event.title}</div>
-                </div>
-              ))
-            )}
-          </div>
+          {isLoggedIn ? (
+            <button 
+              onClick={handleLogout}
+              style={{ 
+                background: 'rgba(255, 255, 255, 0)', 
+                border: 'none', 
+                padding: 0, 
+                margin: 0,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              className="hover:opacity-80 active:scale-95 transition-all w-16"
+            >
+              <img 
+                src="/glogout.png?v=1" 
+                alt="Google Logout" 
+                className="w-full h-auto block pointer-events-none"
+                style={{ imageRendering: 'pixelated' }}
+              />
+            </button>
+          ) : (
+            <button 
+              onClick={handleLogin}
+              style={{ 
+                background: 'rgba(255, 255, 255, 0)', 
+                border: 'none', 
+                padding: 0, 
+                margin: 0,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              className="hover:opacity-80 active:scale-95 transition-all w-16"
+            >
+              <img 
+                src="/gsign.png?v=1" 
+                alt="Google Login" 
+                className="w-full h-auto block pointer-events-none"
+                style={{ imageRendering: 'pixelated' }}
+              />
+            </button>
+          )}
         </motion.div>
       )}
     </AnimatePresence>

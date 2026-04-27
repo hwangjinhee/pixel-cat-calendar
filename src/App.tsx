@@ -43,15 +43,21 @@ function App() {
 
   const checkEvents = async () => {
     try {
-      const events = await invoke<CalendarEvent[]>("get_all_events");
+      const allEvents = await invoke<CalendarEvent[]>("get_all_events");
+      // 생일 일정 필터링
+      const events = allEvents.filter(e => !e.title.includes("생일") && !e.title.toLowerCase().includes("birthday"));
+      
       const now = new Date().getTime();
       let targetEvent: CalendarEvent | null = null;
 
       for (const event of events) {
         const startTime = new Date(event.start_time).getTime();
         const diffMins = (startTime - now) / 60000;
-        if (diffMins > 0 && diffMins <= 10) {
-          targetEvent = event; break; 
+        
+        // 시작 시간이 0분~60분 사이인 '미래'의 일정일 때만 고양이가 일어남
+        if (diffMins > 0 && diffMins <= 60) {
+          targetEvent = event; 
+          break; 
         }
       }
       
@@ -116,25 +122,42 @@ function App() {
     return () => clearInterval(interval);
   }, [hasEvents, nextEvent?.title]);
 
+  useEffect(() => {
+    if (hasEvents) {
+      setShowCalendar(false);
+    }
+  }, [hasEvents]);
+
   if (windowLabel === "main") {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-transparent overflow-hidden">
-        {/* 고양이 컴포넌트 (isSleeping이 true일 때 눕기 이미지) */}
+        {/* 고양이 컴포넌트 */}
         <Cat 
-          onCatClick={() => setShowCalendar(!showCalendar)} 
+          onCatClick={() => {
+            // 일정이 없을 때(잠잘 때)만 캘린더를 열 수 있음
+            if (!hasEvents) {
+              setShowCalendar(!showCalendar);
+            }
+          }} 
           isSleeping={!hasEvents} 
           isMoving={isActuallyMoving}
           facingRight={facingRight}
         />      
-        {/* 말풍선은 hasEvents가 true일 때만 렌더링되도록 함 */}
+        {/* 말풍선은 hasEvents가 true일 때만 렌더링 */}
         {hasEvents && (
-          <div className="absolute bottom-full mb-2">
+          <div className="absolute bottom-full mb-2 pointer-events-none">
             <SpeechBubble message={nyangMessage} isVisible={showNyangBubble} />
           </div>
         )}
-        <div className="fixed top-1/2 left-1/2 -translate-y-1/2 ml-16">
-          <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
-        </div>
+        {/* 위젯은 showCalendar가 true일 때만 명시적으로 렌더링 */}
+        {showCalendar && (
+          <div 
+            className="absolute z-[100] mb-32 ml-32 pointer-events-auto"
+            style={{ transform: 'translate(0, 10px)', width: 'max-content' }}
+          >
+            <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
+          </div>
+        )}
       </div>
     );
   }
