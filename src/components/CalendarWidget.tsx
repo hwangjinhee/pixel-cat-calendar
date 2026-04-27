@@ -2,20 +2,12 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface CalendarEvent {
-  title: string;
-  start_time: string;
-  source: "google" | "outlook" | "apple";
-}
-
 interface CalendarWidgetProps {
   isVisible: boolean;
   onClose: () => void;
 }
 
 export const CalendarWidget = ({ isVisible, onClose }: CalendarWidgetProps) => {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const checkLoginStatus = async () => {
@@ -27,22 +19,9 @@ export const CalendarWidget = ({ isVisible, onClose }: CalendarWidgetProps) => {
     }
   };
 
-  const fetchEvents = async () => {
-    setLoading(true);
-    try {
-      const allEvents = await invoke<CalendarEvent[]>("get_all_events");
-      setEvents(allEvents);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     if (isVisible) {
       checkLoginStatus();
-      fetchEvents();
     }
   }, [isVisible]);
 
@@ -50,7 +29,6 @@ export const CalendarWidget = ({ isVisible, onClose }: CalendarWidgetProps) => {
     try {
       await invoke("google_login");
       await checkLoginStatus();
-      fetchEvents();
       onClose(); // 로그인 성공 시 위젯 닫기
     } catch (e) {
       console.error("Login failed:", e);
@@ -61,7 +39,6 @@ export const CalendarWidget = ({ isVisible, onClose }: CalendarWidgetProps) => {
     try {
       await invoke("google_logout");
       await checkLoginStatus();
-      setEvents([]);
     } catch (e) {
       console.error("Logout failed:", e);
     }

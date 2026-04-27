@@ -13,11 +13,12 @@ struct GoogleToken {
 
 static ACCESS_TOKEN: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 
+#[tauri::command]
 pub async fn google_login(app_handle: tauri::AppHandle) -> Result<String, String> {
     println!("Google Login Initiated...");
 
-    let client_id = std::env::var("GOOGLE_CLIENT_ID").map_err(|_| "GOOGLE_CLIENT_ID not set in environment".to_string())?;
-    let client_secret = std::env::var("GOOGLE_CLIENT_SECRET").map_err(|_| "GOOGLE_CLIENT_SECRET not set in environment".to_string())?;
+    let client_id = env!("GOOGLE_CLIENT_ID");
+    let client_secret = env!("GOOGLE_CLIENT_SECRET");
     
     // 1. OAuth 리스너 시작
     let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(1);
@@ -57,8 +58,8 @@ pub async fn google_login(app_handle: tauri::AppHandle) -> Result<String, String
         let resp = client.post("https://oauth2.googleapis.com/token")
             .form(&[
                 ("code", code.as_str()),
-                ("client_id", client_id.as_str()),
-                ("client_secret", client_secret.as_str()),
+                ("client_id", client_id),
+                ("client_secret", client_secret),
                 ("redirect_uri", redirect_uri.as_str()),
                 ("grant_type", "authorization_code"),
             ])
