@@ -87,7 +87,7 @@ function App() {
 
   const handleManualWait = async () => {
     // 1. 즉시 현재 창(버튼 창) 숨기기
-    const btnWin = getCurrentWebviewWindow();
+    const btnWin = getCurrentWebviewWindow() as any;
     await btnWin.hide();
 
     if (nextEvent) {
