@@ -165,10 +165,15 @@ pub fn run() {
 
                     #[cfg(target_os = "windows")]
                     {
-                        if let Ok(pos) = mouse_position::get_mouse_position() {
-                            if let Ok(Some(m)) = win.primary_monitor() {
-                                target_x = pos.x as f64 / m.scale_factor() + 20.0;
-                                target_y = pos.y as f64 / m.scale_factor() + 20.0;
+                        use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
+                        use windows_sys::Win32::Foundation::POINT;
+                        let mut point = POINT { x: 0, y: 0 };
+                        unsafe {
+                            if GetCursorPos(&mut point) != 0 {
+                                if let Ok(Some(m)) = win.primary_monitor() {
+                                    target_x = point.x as f64 / m.scale_factor() + 20.0;
+                                    target_y = point.y as f64 / m.scale_factor() + 20.0;
+                                }
                             }
                         }
                     }

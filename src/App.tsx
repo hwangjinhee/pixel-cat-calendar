@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { getCurrentWebviewWindow, getAllWebviewWindows } from "@tauri-apps/api/webviewWindow";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { Cat } from "./components/Cat";
 import { CalendarWidget } from "./components/CalendarWidget";
@@ -97,13 +97,13 @@ function App() {
     }
 
     const pos = await btnWin.outerPosition();
+    // @ts-ignore: Tauri v2 API type mismatch
     const monitor = await btnWin.currentMonitor();
     if (monitor) {
       const f = monitor.scaleFactor;
       const x = (pos.x / f);
       const y = (pos.y / f);
       
-      const { getAllWebviewWindows } = await import("@tauri-apps/api/webviewWindow");
       const wins = await getAllWebviewWindows();
       const mainWin = wins.find(w => w.label === "main") as any;
       if (mainWin) {
