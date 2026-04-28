@@ -105,7 +105,7 @@ function App() {
       
       const { getAllWebviewWindows } = await import("@tauri-apps/api/webviewWindow");
       const wins = await getAllWebviewWindows();
-      const mainWin = wins.find(w => w.label === "main");
+      const mainWin = wins.find(w => w.label === "main") as any;
       if (mainWin) {
         await mainWin.setPosition(new LogicalPosition(x, y));
         // 고양이가 앉도록 프론트엔드 상태 즉시 변경

@@ -165,7 +165,7 @@ pub fn run() {
 
                     #[cfg(target_os = "windows")]
                     {
-                        if let Ok(pos) = mouse_position::mouse::get_mouse_position() {
+                        if let Ok(pos) = mouse_position::get_mouse_position() {
                             if let Ok(Some(m)) = win.primary_monitor() {
                                 target_x = pos.x as f64 / m.scale_factor() + 20.0;
                                 target_y = pos.y as f64 / m.scale_factor() + 20.0;
