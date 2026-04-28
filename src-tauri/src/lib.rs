@@ -157,7 +157,7 @@ pub fn run() {
                         use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
                         if let Ok(src) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState) {
                             if let Ok(evt) = CGEvent::new(src) {
-                                let p = evt.location();
+                                let p: core_graphics::geometry::CGPoint = evt.location();
                                 target_x = p.x + 20.0; target_y = p.y + 20.0;
                             }
                         }

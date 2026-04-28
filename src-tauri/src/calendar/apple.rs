@@ -14,7 +14,7 @@ thread_local! {
 static ACCESS_STATE: AtomicU8 = AtomicU8::new(0);
 
 pub fn fetch_apple_events() -> Result<Vec<CalendarEvent>, String> {
-    MANAGER.with(|manager_cell| {
+    MANAGER.with(|manager_cell: &RefCell<EventsManager>| {
         let manager = manager_cell.borrow();
 
         // 현재 권한 상태 확인
@@ -60,7 +60,7 @@ pub fn fetch_apple_events() -> Result<Vec<CalendarEvent>, String> {
         
         match manager.fetch_events(search_start, search_end, None) {
             Ok(events) => {
-                let active_events: Vec<_> = events.into_iter()
+                let active_events: Vec<eventkit::Event> = events.into_iter()
                     .filter(|e| {
                         e.start_date <= (now + wake_up_buffer)
                     })
