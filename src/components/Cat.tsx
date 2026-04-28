@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
@@ -11,105 +11,56 @@ interface CatProps {
   facingRight?: boolean;
 }
 
-type CatState = "WALKING" | "SITTING" | "STANDING_UP" | "SITTING_DOWN" | "LYING_DOWN" | "SLEEPING";
-
 export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps) => {
-  const [state, setState] = useState<CatState>("SITTING");
+  const mouseDownTime = useRef<number>(0);
 
-  useEffect(() => {
-    // 1. 취침 모드(isSleeping=true) 최우선 처리
-    if (isSleeping) {
-      if (state !== "SLEEPING" && state !== "LYING_DOWN") {
-        setState("LYING_DOWN");
-        const timer = setTimeout(() => setState("SLEEPING"), 600);
-        return () => clearTimeout(timer);
-      }
-      return;
-    }
-
-    // 2. 활성 모드 처리
-    if (isMoving) {
-      if (state !== "WALKING" && state !== "STANDING_UP") {
-        setState("STANDING_UP");
-        const timer = setTimeout(() => setState("WALKING"), 400);
-        return () => clearTimeout(timer);
-      } else {
-        setState("WALKING");
-      }
-    } else {
-      if (state === "WALKING" || state === "STANDING_UP") {
-        setState("SITTING_DOWN");
-        const timer = setTimeout(() => setState("SITTING"), 400);
-        return () => clearTimeout(timer);
-      } else {
-        setState("SITTING");
-      }
-    }
-  }, [isMoving, isSleeping, state]);
-
-  const getCatDisplay = () => {
-    switch (state) {
-      case "WALKING":
-        return { src: "/walking_cat_v2.gif?v=2", scaleY: 1, y: 0 };
-      case "STANDING_UP":
-      case "SITTING_DOWN":
-        return { src: "/walking_cat_v2.gif?v=2", scaleY: 1, y: 0 };
-      case "SITTING":
-        return { src: "/sitting_cat.gif?v=2", scaleY: 1, y: 5 };
-      case "LYING_DOWN":
-      case "SLEEPING":
-        return { src: "/lying_cat.gif?v=2", scaleY: 1, y: 15 };
-      default:
-        return { src: "/sitting_cat.gif?v=2", scaleY: 1, y: 5 };
-    }
+  const getCatSrc = () => {
+    if (isSleeping) return "/lying_cat.gif?v=2";
+    if (isMoving) return "/walking_cat_v2.gif?v=2";
+    return "/sitting_cat.gif?v=2";
   };
 
-  const display = getCatDisplay();
-
   return (
-    <motion.div
-      onContextMenu={(e) => e.preventDefault()} // 우클릭 메뉴 차단
+    <div 
+      style={{ 
+        width: "120px", 
+        height: "120px", 
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "rgba(255, 255, 255, 0.01)", 
+        cursor: "move"
+      }}
+      onContextMenu={(e) => e.preventDefault()}
       onMouseDown={(e) => {
-        if (e.button === 0) { // 좌클릭 시에만 창 드래그 시작
+        if (e.button === 0) {
+          mouseDownTime.current = Date.now();
           appWindow.startDragging();
         }
       }}
-      onClick={(e) => {
-        // 클릭과 드래그를 구분하기 위해 stopPropagation 사용 고려 가능
-        e.stopPropagation();
-        onCatClick();
-      }}
-      className="cursor-pointer relative flex items-center justify-center pointer-events-auto"
-      style={{ 
-        width: "96px", 
-        height: "96px", 
-        cursor: 'pointer',
-        userSelect: 'none',
-        WebkitUserSelect: 'none'
+      onMouseUp={(e) => {
+        if (e.button === 0) {
+          const clickDuration = Date.now() - mouseDownTime.current;
+          // 200ms 미만으로 짧게 눌렀다 떼면 클릭으로 간주
+          if (clickDuration < 200) {
+            onCatClick();
+          }
+        }
       }}
     >
       <motion.div
-        animate={{ 
-          y: display.y,
-          scaleX: facingRight ? -1.0 : 1.0,
-          scaleY: 1.0
-        }}
+        animate={{ scaleX: facingRight ? -1.0 : 1.0 }}
         transition={{ duration: 0.3 }}
-        className="w-full h-full flex items-center justify-center pointer-events-none"
+        style={{ pointerEvents: "none" }}
       >
         <img 
-          src={display.src} 
-          alt="pixel cat"
-          onDragStart={(e) => e.preventDefault()} // 개별 이미지 드래그 차단
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            imageRendering: "pixelated",
-            pointerEvents: 'none' // 이미지 자체가 이벤트를 받지 않게 함
-          }}
+          src={getCatSrc()} 
+          alt="cat"
+          draggable="false"
+          style={{ width: "100px", height: "100px", imageRendering: "pixelated" }}
         />
       </motion.div>
-    </motion.div>
+    </div>
   );
 };
