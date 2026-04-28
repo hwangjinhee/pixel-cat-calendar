@@ -1,6 +1,6 @@
 [package]
 name = "pixel-cat-calendar"
-version = "0.3.1"
+version = "0.3.2"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -28,6 +28,7 @@ once_cell = "1.21.4"
 futures-util = "0.3.32"
 urlencoding = "2.1.3"
 url = "2.5.8"
+mouse-position = "0.1.3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri = { version = "2", features = ["macos-private-api"] }

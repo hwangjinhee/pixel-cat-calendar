@@ -15,6 +15,10 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* 텍스트 선택 방지 */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 html, body {
@@ -24,9 +28,18 @@ html, body {
   height: 100vh;
   background-color: transparent !important;
   overflow: hidden !important;
-  user-select: none;
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
+}
+
+/* 이미지 드래그 방지 */
+img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  pointer-events: none; /* 이미지가 이벤트를 가로채지 않게 함 */
 }
 
 html::-webkit-scrollbar, body::-webkit-scrollbar {

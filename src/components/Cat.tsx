@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+
+const appWindow = getCurrentWebviewWindow();
 
 interface CatProps {
   onCatClick: () => void;
@@ -42,7 +45,7 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
         setState("SITTING");
       }
     }
-  }, [isMoving, isSleeping, state]); // state도 의존성에 추가하여 시퀀스 보장
+  }, [isMoving, isSleeping, state]);
 
   const getCatDisplay = () => {
     switch (state) {
@@ -65,12 +68,25 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
 
   return (
     <motion.div
+      onContextMenu={(e) => e.preventDefault()} // 우클릭 메뉴 차단
+      onMouseDown={(e) => {
+        if (e.button === 0) { // 좌클릭 시에만 창 드래그 시작
+          appWindow.startDragging();
+        }
+      }}
       onClick={(e) => {
+        // 클릭과 드래그를 구분하기 위해 stopPropagation 사용 고려 가능
         e.stopPropagation();
         onCatClick();
       }}
       className="cursor-pointer relative flex items-center justify-center pointer-events-auto"
-      style={{ width: "96px", height: "96px", cursor: 'pointer' }}
+      style={{ 
+        width: "96px", 
+        height: "96px", 
+        cursor: 'pointer',
+        userSelect: 'none',
+        WebkitUserSelect: 'none'
+      }}
     >
       <motion.div
         animate={{ 
@@ -79,16 +95,18 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
           scaleY: 1.0
         }}
         transition={{ duration: 0.3 }}
-        className="w-full h-full flex items-center justify-center"
+        className="w-full h-full flex items-center justify-center pointer-events-none"
       >
         <img 
           src={display.src} 
           alt="pixel cat"
+          onDragStart={(e) => e.preventDefault()} // 개별 이미지 드래그 차단
           style={{
             width: "100%",
             height: "100%",
             objectFit: "contain",
-            imageRendering: "pixelated"
+            imageRendering: "pixelated",
+            pointerEvents: 'none' // 이미지 자체가 이벤트를 받지 않게 함
           }}
         />
       </motion.div>
