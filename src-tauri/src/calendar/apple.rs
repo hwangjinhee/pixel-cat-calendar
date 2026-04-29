@@ -1,7 +1,7 @@
 #![cfg(target_os = "macos")]
 
 use crate::calendar::CalendarEvent;
-use eventkit::{EventsManager, AuthorizationStatus};
+use eventkit_rs::{EventsManager, AuthorizationStatus};
 use chrono::{Local, TimeZone, Datelike};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -14,7 +14,7 @@ thread_local! {
 static ACCESS_STATE: AtomicU8 = AtomicU8::new(0);
 
 pub fn fetch_apple_events() -> Result<Vec<CalendarEvent>, String> {
-    MANAGER.with(|manager_cell: &RefCell<EventsManager>| {
+    MANAGER.with(|manager_cell| {
         let manager = manager_cell.borrow();
 
         // 현재 권한 상태 확인
@@ -45,7 +45,6 @@ pub fn fetch_apple_events() -> Result<Vec<CalendarEvent>, String> {
         }
 
         // 3. 권한이 있는 경우에만 데이터 가져오기 (FullAccess 또는 WriteOnly 등)
-        // eventkit-rs 0.5.5+ 기준: Authorized 대신 구체적인 권한 확인
         let is_authorized = !matches!(auth_status, AuthorizationStatus::NotDetermined | AuthorizationStatus::Denied | AuthorizationStatus::Restricted);
 
         if !is_authorized {
@@ -60,11 +59,11 @@ pub fn fetch_apple_events() -> Result<Vec<CalendarEvent>, String> {
         
         match manager.fetch_events(search_start, search_end, None) {
             Ok(events) => {
-                let active_events: Vec<eventkit::Event> = events.into_iter()
+                let active_events = events.into_iter()
                     .filter(|e| {
                         e.start_date <= (now + wake_up_buffer)
                     })
-                    .collect();
+                    .collect::<Vec<_>>();
 
                 let calendar_events = active_events.into_iter().map(|e| CalendarEvent {
                     title: e.title,

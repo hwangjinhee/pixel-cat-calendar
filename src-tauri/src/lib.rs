@@ -104,49 +104,44 @@ pub fn run() {
                 let x = (size.width as f64 / factor) - 170.0;
                 let y = (size.height as f64 / factor) - 170.0;
                 let _ = main_win.set_position(LogicalPosition::new(x, y));
-                let _ = btn_win.set_position(LogicalPosition::new(x + 100.0, y + 100.0));
+                let _ = btn_win.set_position(LogicalPosition::new(x, y));
             }
 
             let win = main_win.clone();
             let bwin = btn_win.clone();
             tauri::async_runtime::spawn(async move {
                 let mut interval = time::interval(Duration::from_millis(16));
-                let mut curr_x: f64 = 0.0;
-                let mut curr_y: f64 = 0.0;
-                let mut is_init = false;
+                let initial_pos = win.outer_position().unwrap_or_default();
+                let factor = win.current_monitor().ok().flatten().map(|m| m.scale_factor()).unwrap_or(1.0);
+                let (mut curr_x, mut curr_y) = (initial_pos.x as f64 / factor, initial_pos.y as f64 / factor);
+                let (mut last_facing_right, mut last_moving) = (false, false);
 
                 loop {
                     interval.tick().await;
                     let following = IS_FOLLOWING_INTERNAL.load(Ordering::SeqCst);
 
                     if !following {
-                        // 중요: 쉬고 있을 때는 버튼 창이 고양이 위치와 완벽히 일치하게 함
                         if let Ok(pos) = win.outer_position() {
                             if let Ok(Some(m)) = win.primary_monitor() {
                                 let f = m.scale_factor();
                                 curr_x = pos.x as f64 / f;
                                 curr_y = pos.y as f64 / f;
-                                // 오프셋 없이 고양이 창 위치 그대로 버튼을 배치
                                 let _ = bwin.set_position(LogicalPosition::new(curr_x, curr_y));
                             }
                         }
-                        is_init = false;
+                        if last_moving {
+                            let _ = win.emit("cat-move-state", serde_json::json!({"is_moving": false, "facing_right": last_facing_right}));
+                            last_moving = false;
+                        }
                         continue;
                     }
 
-                    // 팔로잉 진입 시 좌표 초기화
-                    if !is_init {
+                    if !last_moving && following {
                         if let Ok(pos) = win.outer_position() {
-                            if let Ok(Some(m)) = win.primary_monitor() {
-                                curr_x = pos.x as f64 / m.scale_factor();
-                                curr_y = pos.y as f64 / m.scale_factor();
-                                if curr_x > 0.1 { is_init = true; }
-                            }
+                            curr_x = pos.x as f64 / factor;
+                            curr_y = pos.y as f64 / factor;
                         }
-                        if !is_init { continue; }
                     }
-
-                    // 팔로잉 중에는 버튼 창(bwin)을 건드리지 않음 -> 버튼이 그 자리에 고정됨
 
                     let mut target_x = curr_x;
                     let mut target_y = curr_y;
@@ -157,7 +152,7 @@ pub fn run() {
                         use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
                         if let Ok(src) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState) {
                             if let Ok(evt) = CGEvent::new(src) {
-                                let p: core_graphics::geometry::CGPoint = evt.location();
+                                let p = evt.location();
                                 target_x = p.x + 20.0; target_y = p.y + 20.0;
                             }
                         }
@@ -180,14 +175,17 @@ pub fn run() {
 
                     let dx = target_x - curr_x;
                     let dy = target_y - curr_y;
-                    
-                    if dx.abs() > 1.0 || dy.abs() > 1.0 {
-                        curr_x += dx * 0.08;
-                        curr_y += dy * 0.08;
-                        let _ = win.set_position(LogicalPosition::new(curr_x, curr_y));
-                        let _ = win.emit("cat-move-state", serde_json::json!({"is_moving": true, "facing_right": dx > 0.0}));
-                    } else {
-                        let _ = win.emit("cat-move-state", serde_json::json!({"is_moving": false, "facing_right": dx > 0.0}));
+                    let is_moving = dx.abs() > 1.5 || dy.abs() > 1.5;
+                    let facing_right = if dx > 0.0 { true } else if dx < 0.0 { false } else { last_facing_right };
+
+                    curr_x += dx * 0.08;
+                    curr_y += dy * 0.08;
+                    let _ = win.set_position(LogicalPosition::new(curr_x, curr_y));
+
+                    if is_moving != last_moving || facing_right != last_facing_right {
+                        let _ = win.emit("cat-move-state", serde_json::json!({"is_moving": is_moving, "facing_right": facing_right}));
+                        last_moving = is_moving;
+                        last_facing_right = facing_right;
                     }
                 }
             });
