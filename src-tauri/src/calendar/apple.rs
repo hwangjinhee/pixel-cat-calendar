@@ -1,7 +1,7 @@
 #![cfg(target_os = "macos")]
 
 use crate::calendar::CalendarEvent;
-use eventkit_rs::{EventsManager, AuthorizationStatus};
+use eventkit::{EventsManager, AuthorizationStatus};
 use chrono::{Local, TimeZone, Datelike};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicU8, Ordering};

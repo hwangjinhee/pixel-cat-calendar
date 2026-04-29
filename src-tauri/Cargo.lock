@@ -3156,7 +3156,7 @@ dependencies = [
 
 [[package]]
 name = "pixel-cat-calendar"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "chrono",
  "cocoa",
