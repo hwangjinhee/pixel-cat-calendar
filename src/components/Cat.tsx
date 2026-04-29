@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { motion } from "framer-motion";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { invoke } from "@tauri-apps/api/core";
 
 const appWindow = getCurrentWebviewWindow();
 
@@ -42,8 +43,10 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
       onMouseUp={(e) => {
         if (e.button === 0) {
           const clickDuration = Date.now() - mouseDownTime.current;
-          // 200ms 미만으로 짧게 눌렀다 떼면 클릭으로 간주
-          if (clickDuration < 200) {
+          console.log(`MouseUp detected. Duration: ${clickDuration}ms`);
+          // 400ms 미만으로 짧게 눌렀다 떼면 클릭으로 간주 (윈도우 호환성을 위해 상향)
+          if (clickDuration < 400) {
+            invoke("log_message", { msg: `Cat Clicked! Duration: ${clickDuration}ms` });
             onCatClick();
           }
         }

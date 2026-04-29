@@ -153,7 +153,10 @@ function App() {
           </div>
         )}
         {showCalendar && (
-          <div className="absolute z-[100] top-[60%] left-[60%] pointer-events-auto" style={{ width: 'max-content' }}>
+          <div 
+            className="absolute z-[100] top-[60%] left-[60%] pointer-events-auto" 
+            style={{ width: 'max-content', transform: 'translateY(-20px)' }}
+          >
             <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
           </div>
         )}
