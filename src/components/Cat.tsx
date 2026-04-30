@@ -13,7 +13,7 @@ interface CatProps {
 }
 
 export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps) => {
-  const mouseDownTime = useRef<number>(0);
+  const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
 
   const getCatSrc = () => {
     if (isSleeping) return "/lying_cat.gif?v=2";
@@ -36,19 +36,21 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
       onContextMenu={(e) => e.preventDefault()}
       onMouseDown={(e) => {
         if (e.button === 0) {
-          mouseDownTime.current = Date.now();
+          mouseDownPos.current = { x: e.screenX, y: e.screenY };
           appWindow.startDragging();
         }
       }}
       onMouseUp={(e) => {
-        if (e.button === 0) {
-          const clickDuration = Date.now() - mouseDownTime.current;
-          console.log(`MouseUp detected. Duration: ${clickDuration}ms`);
-          // 400ms 미만으로 짧게 눌렀다 떼면 클릭으로 간주 (윈도우 호환성을 위해 상향)
-          if (clickDuration < 400) {
-            invoke("log_message", { msg: `Cat Clicked! Duration: ${clickDuration}ms` });
+        if (e.button === 0 && mouseDownPos.current) {
+          const deltaX = Math.abs(e.screenX - mouseDownPos.current.x);
+          const deltaY = Math.abs(e.screenY - mouseDownPos.current.y);
+          
+          // 마우스가 거의 움직이지 않았을 때만 클릭으로 간주 (5px 이내)
+          if (deltaX < 5 && deltaY < 5) {
+            console.log("Cat Clicked (Distance based)");
             onCatClick();
           }
+          mouseDownPos.current = null;
         }
       }}
     >
