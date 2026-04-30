@@ -1,7 +1,6 @@
 import { useRef } from "react";
 import { motion } from "framer-motion";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { invoke } from "@tauri-apps/api/core";
 
 const appWindow = getCurrentWebviewWindow();
 
