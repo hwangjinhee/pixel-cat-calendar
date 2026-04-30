@@ -1,8 +1,5 @@
 import { useRef } from "react";
 import { motion } from "framer-motion";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-
-const appWindow = getCurrentWebviewWindow();
 
 interface CatProps {
   onCatClick: () => void;
@@ -12,8 +9,6 @@ interface CatProps {
 }
 
 export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps) => {
-  const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
-
   const getCatSrc = () => {
     if (isSleeping) return "/lying_cat.gif?v=2";
     if (isMoving) return "/walking_cat_v2.gif?v=2";
@@ -23,48 +18,65 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
   return (
     <div 
       style={{ 
-        width: "120px", 
-        height: "120px", 
+        width: "150px", 
+        height: "150px", 
         position: "relative",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "rgba(255, 255, 255, 0.01)", 
-        cursor: "move"
+        userSelect: "none"
       }}
       onContextMenu={(e) => e.preventDefault()}
-      onMouseDown={(e) => {
-        if (e.button === 0) {
-          mouseDownPos.current = { x: e.screenX, y: e.screenY };
-          appWindow.startDragging();
-        }
-      }}
-      onMouseUp={(e) => {
-        if (e.button === 0 && mouseDownPos.current) {
-          const deltaX = Math.abs(e.screenX - mouseDownPos.current.x);
-          const deltaY = Math.abs(e.screenY - mouseDownPos.current.y);
-          
-          // 마우스가 거의 움직이지 않았을 때만 클릭으로 간주 (5px 이내)
-          if (deltaX < 5 && deltaY < 5) {
-            console.log("Cat Clicked (Distance based)");
-            onCatClick();
-          }
-          mouseDownPos.current = null;
-        }
-      }}
     >
-      <motion.div
-        animate={{ scaleX: facingRight ? -1.0 : 1.0 }}
-        transition={{ duration: 0.3 }}
-        style={{ pointerEvents: "none" }}
+      {/* 1. 바깥쪽 드래그 전용 영역 (Tauri 속성 활용) */}
+      <div 
+        data-tauri-drag-region
+        style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: "50%",
+          cursor: "move",
+          zIndex: 1,
+          backgroundColor: "rgba(0,0,0,0.01)" // 마우스 이벤트를 받기 위한 미세 배경
+        }}
+      />
+
+      {/* 2. 안쪽 클릭 전용 영역 (고양이 몸체 부분) */}
+      <div 
+        onClick={(e) => {
+          e.stopPropagation();
+          console.log("Cat Body Clicked!");
+          onCatClick();
+        }}
+        style={{
+          position: "relative",
+          width: "100px",
+          height: "100px",
+          zIndex: 10, // 드래그 영역보다 위로 배치
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "auto" // 클릭 강제 활성화
+        }}
       >
-        <img 
-          src={getCatSrc()} 
-          alt="cat"
-          draggable="false"
-          style={{ width: "100px", height: "100px", imageRendering: "pixelated" }}
-        />
-      </motion.div>
+        <motion.div
+          animate={{ scaleX: facingRight ? -1.0 : 1.0 }}
+          transition={{ duration: 0.3 }}
+          style={{ pointerEvents: "none" }} // 이미지는 클릭을 통과시켜 부모 div가 받게 함
+        >
+          <img 
+            src={getCatSrc()} 
+            alt="cat"
+            draggable="false"
+            style={{ 
+              width: "100px", 
+              height: "100px", 
+              imageRendering: "pixelated"
+            }}
+          />
+        </motion.div>
+      </div>
     </div>
   );
 };
