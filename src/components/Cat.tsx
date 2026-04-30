@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { motion } from "framer-motion";
 
 interface CatProps {
@@ -18,65 +17,70 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
   return (
     <div 
       style={{ 
-        width: "150px", 
-        height: "150px", 
+        width: "120px", 
+        height: "120px", 
         position: "relative",
         display: "flex",
+        flexDirection: "column", // 상하 분할을 위해 flex-column 사용
         alignItems: "center",
         justifyContent: "center",
         userSelect: "none"
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* 1. 바깥쪽 드래그 전용 영역 (Tauri 속성 활용) */}
+      {/* 1. 드래그 전용 상단 영역 (고양이 머리 부분 - 40%) */}
       <div 
         data-tauri-drag-region
         style={{
           position: "absolute",
-          inset: 0,
-          borderRadius: "50%",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "40%", // 상단 40%
+          zIndex: 20,
           cursor: "move",
-          zIndex: 1,
-          backgroundColor: "rgba(0,0,0,0.01)" // 마우스 이벤트를 받기 위한 미세 배경
+          backgroundColor: "rgba(0,0,0,0.01)" // 마우스 이벤트 포착용 미세 배경
         }}
+        title="이 부분을 잡고 드래그하세요"
       />
 
-      {/* 2. 안쪽 클릭 전용 영역 (고양이 몸체 부분) */}
+      {/* 2. 클릭 전용 하단 영역 (고양이 몸통 부분 - 60%) */}
       <div 
         onClick={(e) => {
           e.stopPropagation();
-          console.log("Cat Body Clicked!");
           onCatClick();
         }}
         style={{
-          position: "relative",
-          width: "100px",
-          height: "100px",
-          zIndex: 10, // 드래그 영역보다 위로 배치
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          width: "100%",
+          height: "60%", // 하단 60%
+          zIndex: 20,
           cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          pointerEvents: "auto" // 클릭 강제 활성화
+          backgroundColor: "rgba(0,0,0,0.01)" // 클릭 감도용 미세 배경
         }}
+        title="이 부분을 클릭해서 연동 위젯을 여세요"
+      />
+
+      {/* 3. 시각적 고양이 이미지 (이벤트 투과) */}
+      <motion.div
+        animate={{ scaleX: facingRight ? -1.0 : 1.0 }}
+        transition={{ duration: 0.3 }}
+        style={{ pointerEvents: "none", zIndex: 10 }}
       >
-        <motion.div
-          animate={{ scaleX: facingRight ? -1.0 : 1.0 }}
-          transition={{ duration: 0.3 }}
-          style={{ pointerEvents: "none" }} // 이미지는 클릭을 통과시켜 부모 div가 받게 함
-        >
-          <img 
-            src={getCatSrc()} 
-            alt="cat"
-            draggable="false"
-            style={{ 
-              width: "100px", 
-              height: "100px", 
-              imageRendering: "pixelated"
-            }}
-          />
-        </motion.div>
-      </div>
+        <img 
+          src={getCatSrc()} 
+          alt="cat"
+          draggable="false"
+          style={{ 
+            width: "100px", 
+            height: "100px", 
+            imageRendering: "pixelated",
+            display: "block"
+          }}
+        />
+      </motion.div>
     </div>
   );
 };
