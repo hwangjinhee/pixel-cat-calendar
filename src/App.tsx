@@ -87,33 +87,33 @@ function App() {
     setShowNyangBubble(true);
     setTimeout(() => setShowNyangBubble(false), 7000);
   };
+const handleManualWait = async () => {
+  if (nextEvent) {
+    const eventId = `${nextEvent.title}-${nextEvent.start_time}`;
+    manualWaitEventIdRef.current = eventId;
+    await invoke("mark_manual_sleep");
+  }
 
-  const handleManualWait = async () => {
-    const btnWin = getCurrentWebviewWindow() as any;
-    await btnWin.hide();
-
-    if (nextEvent) {
-      const eventId = `${nextEvent.title}-${nextEvent.start_time}`;
-      manualWaitEventIdRef.current = eventId;
-      await invoke("mark_manual_sleep");
+  const btnWin = getCurrentWebviewWindow() as any;
+  const pos = await btnWin.outerPosition();
+  // @ts-ignore
+  const monitor = await btnWin.currentMonitor();
+  if (monitor) {
+    const f = monitor.scaleFactor;
+    const x = (pos.x / f);
+    const y = (pos.y / f);
+    const wins = await getAllWebviewWindows();
+    const mainWin = wins.find(w => w.label === "main") as any;
+    if (mainWin) {
+      await mainWin.setPosition(new LogicalPosition(x, y));
     }
+  }
 
-    const pos = await btnWin.outerPosition();
-    // @ts-ignore
-    const monitor = await btnWin.currentMonitor();
-    if (monitor) {
-      const f = monitor.scaleFactor;
-      const x = (pos.x / f);
-      const y = (pos.y / f);
-      const wins = await getAllWebviewWindows();
-      const mainWin = wins.find(w => w.label === "main") as any;
-      if (mainWin) {
-        await mainWin.setPosition(new LogicalPosition(x, y));
-        setHasEvents(false);
-      }
-    }
-    setShowNyangBubble(false);
-  };
+  setHasEvents(false);
+  setShowNyangBubble(false);
+  await btnWin.hide(); // 모든 처리가 끝난 후 마지막에 숨김
+};
+
 
   useEffect(() => {
     checkEvents();
