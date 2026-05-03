@@ -52,8 +52,12 @@ function App() {
       for (const event of events) {
         const startTime = new Date(event.start_time).getTime();
         const diffMins = (startTime - now) / 60000;
-        if (diffMins > 0 && diffMins <= 60) {
-          targetEvent = event; break; 
+        
+        // 정확히 10분 이내 (0 ~ 10분) 일 때만 깨어남
+        // 시작 시간이 지나면 (diffMins <= 0) 즉시 취침
+        if (diffMins > 0 && diffMins <= 10) {
+          targetEvent = event; 
+          break; 
         }
       }
       
@@ -150,21 +154,14 @@ function App() {
             facingRight={facingRight}
           />
 
-          {/* 위젯 - 고양이 바로 아래에 배치 (gap 없이 바짝 붙임) */}
+          {/* 위젯 */}
           {showCalendar && (
             <div className="absolute top-full mt-[-10px] z-[9999] pointer-events-auto">
               <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
             </div>
           )}
           
-          {/* 기다리기 버튼 */}
-          {hasEvents && (
-            <div className="mt-2 pointer-events-auto">
-              <button onClick={handleManualWait} className="active:opacity-70 cursor-pointer bg-transparent border-none p-0">
-                <img src="/wait_2.png?v=1" alt="기다리기" className="w-12 h-auto block" style={{ imageRendering: 'pixelated' }} />
-              </button>
-            </div>
-          )}
+          {/* 기다리기 버튼 중복 노출 제거함 (sleep-button 창에서만 렌더링) */}
         </div>
       </div>
     );
@@ -173,8 +170,31 @@ function App() {
   if (windowLabel === "sleep-button") {
     return (
       <div className="w-full h-full flex items-center justify-center bg-transparent overflow-hidden">
-        <button onClick={handleManualWait} className="active:opacity-70 cursor-pointer bg-transparent border-none p-0">
-          <img src="/wait_2.png?v=1" alt="기다리기" className="w-12 h-auto block" style={{ imageRendering: 'pixelated' }} />
+        <button 
+          onClick={handleManualWait} 
+          style={{ 
+            background: 'transparent', 
+            backgroundColor: 'transparent',
+            border: 'none', 
+            padding: 0, 
+            outline: 'none', 
+            boxShadow: 'none',
+            cursor: 'pointer',
+            appearance: 'none',
+            WebkitAppearance: 'none'
+          }}
+          className="active:opacity-70"
+        >
+          <img 
+            src="/wait_2.png?v=1" 
+            alt="기다리기" 
+            className="w-12 h-auto block" 
+            style={{ 
+              imageRendering: 'pixelated',
+              backgroundColor: 'transparent',
+              pointerEvents: 'none'
+            }} 
+          />
         </button>
       </div>
     );
