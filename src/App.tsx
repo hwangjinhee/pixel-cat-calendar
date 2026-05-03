@@ -132,44 +132,26 @@ function App() {
     if (hasEvents) setShowCalendar(false);
   }, [hasEvents]);
 
-  // 마우스 이벤트 투과 처리 (윈도우 절반 클릭 불가 문제 해결)
-  useEffect(() => {
-    const mainWin = getCurrentWebviewWindow();
-    const handleMouseMove = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      // 상호작용 가능한 요소(고양이, 위젯 버튼 등) 위에 있을 때만 클릭 활성화
-      const isInteractive = target.closest('.pointer-events-auto');
-      mainWin.setIgnoreCursorEvents(!isInteractive);
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
   if (windowLabel === "main") {
     return (
-      <div 
-        className="w-full h-full flex flex-col items-center justify-center bg-transparent overflow-hidden select-none relative"
-      >
-        <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto">
-            <Cat 
-              onCatClick={() => { if (!hasEvents) setShowCalendar(!showCalendar); }} 
-              isSleeping={!hasEvents} 
-              isMoving={isActuallyMoving}
-              facingRight={facingRight}
-            />
+      <div className="w-full h-full flex items-center justify-center bg-transparent overflow-visible select-none relative">
+        <Cat 
+          onCatClick={() => { if (!hasEvents) setShowCalendar(!showCalendar); }} 
+          isSleeping={!hasEvents} 
+          isMoving={isActuallyMoving}
+          facingRight={facingRight}
+        />      
+        {/* 말풍선 & 위젯 - 창 크기가 작으므로 overflow-visible을 이용해 창 밖으로 렌더링 */}
+        {hasEvents && (
+          <div className="absolute top-full mt-2 pointer-events-none z-50">
+            <SpeechBubble message={nyangMessage} isVisible={showNyangBubble} />
           </div>
-          {hasEvents && (
-            <div className="absolute top-[80%] mt-2 pointer-events-none z-50">
-              <SpeechBubble message={nyangMessage} isVisible={showNyangBubble} />
-            </div>
-          )}
-          {showCalendar && (
-            <div className="absolute top-[80%] mt-[-10px] z-[9999] pointer-events-auto">
-              <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
-            </div>
-          )}
-        </div>
+        )}
+        {showCalendar && (
+          <div className="absolute top-full mt-[-20px] z-[9999] pointer-events-auto">
+            <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
+          </div>
+        )}
       </div>
     );
   }
