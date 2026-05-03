@@ -34,12 +34,24 @@ function App() {
   useEffect(() => {
     if (windowLabel !== "main") return;
     const updateWindowSize = async () => {
-      const win = getCurrentWebviewWindow();
-      // 말풍선이나 위젯이 켜져있으면 창을 아래로 늘림
-      if (showNyangBubble || showCalendar || hasEvents) {
-        await win.setSize(new LogicalSize(150, 350));
-      } else {
-        await win.setSize(new LogicalSize(130, 130));
+      try {
+        const mainWin = getCurrentWebviewWindow();
+        const currentSize = await mainWin.innerSize();
+        
+        let targetWidth = 130;
+        let targetHeight = 130;
+
+        if (showNyangBubble || showCalendar || hasEvents) {
+          targetWidth = 150;
+          targetHeight = 350;
+        }
+
+        // 현재 크기와 다를 때만 업데이트하여 무한 루프나 부하 방지
+        if (currentSize.width !== targetWidth || currentSize.height !== targetHeight) {
+          await mainWin.setSize(new LogicalSize(targetWidth, targetHeight));
+        }
+      } catch (e) {
+        console.error("Window resize failed:", e);
       }
     };
     updateWindowSize();
