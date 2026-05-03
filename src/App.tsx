@@ -61,7 +61,6 @@ function App() {
       if (!eventId) manualWaitEventIdRef.current = null;
       const isWaiting = eventId !== null && manualWaitEventIdRef.current === eventId;
 
-      // 백엔드 상태 즉시 동기화
       await invoke("sync_state", { eventId: isWaiting ? null : eventId });
 
       if (targetEvent && !isWaiting) {
@@ -86,14 +85,18 @@ function App() {
   };
 
   const handleManualWait = async () => {
+    setHasEvents(false);
+    setShowNyangBubble(false);
+
     if (nextEvent) {
       const eventId = `${nextEvent.title}-${nextEvent.start_time}`;
       manualWaitEventIdRef.current = eventId;
-      // 1. 백엔드에 즉시 대기 신호를 보내어 창 숨김 처리를 위임함
       await invoke("mark_manual_sleep");
     }
 
     const btnWin = getCurrentWebviewWindow() as any;
+    btnWin.hide();
+
     const pos = await btnWin.outerPosition();
     const monitor = await btnWin.currentMonitor();
     if (monitor) {
@@ -104,14 +107,9 @@ function App() {
       const mainWin = wins.find(w => w.label === "main") as any;
       if (mainWin) {
         await mainWin.setPosition(new LogicalPosition(x, y));
+        await mainWin.setFocus(); 
       }
     }
-
-    // 2. 프론트엔드 상태 즉시 정리
-    setHasEvents(false);
-    setShowNyangBubble(false);
-    // 3. 현재 버튼 창 즉시 숨김 (백엔드 루프가 다시 띄우지 않도록 sync_state를 위에서 이미 호출함)
-    await btnWin.hide();
   };
 
   useEffect(() => {
@@ -134,29 +132,40 @@ function App() {
     if (hasEvents) setShowCalendar(false);
   }, [hasEvents]);
 
+  // 마우스 이벤트 투과 처리 (윈도우 절반 클릭 불가 문제 해결)
+  useEffect(() => {
+    const mainWin = getCurrentWebviewWindow();
+    const handleMouseMove = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // 상호작용 가능한 요소(고양이, 위젯 버튼 등) 위에 있을 때만 클릭 활성화
+      const isInteractive = target.closest('.pointer-events-auto');
+      mainWin.setIgnoreCursorEvents(!isInteractive);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   if (windowLabel === "main") {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-transparent overflow-hidden select-none relative">
-        {/* 고정된 높이의 컨테이너를 사용하여 레이아웃 흔들림 방지 */}
-        <div className="relative w-[150px] h-[150px] flex items-center justify-center">
-          {/* 고양이 */}
-          <Cat 
-            onCatClick={() => { if (!hasEvents) setShowCalendar(!showCalendar); }} 
-            isSleeping={!hasEvents} 
-            isMoving={isActuallyMoving}
-            facingRight={facingRight}
-          />
-
-          {/* 말풍선 - 고양이 아래(top-full)에 absolute로 배치하여 고양이를 밀어내지 않게 함 */}
+      <div 
+        className="w-full h-full flex flex-col items-center justify-center bg-transparent overflow-hidden select-none relative"
+      >
+        <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
+          <div className="pointer-events-auto">
+            <Cat 
+              onCatClick={() => { if (!hasEvents) setShowCalendar(!showCalendar); }} 
+              isSleeping={!hasEvents} 
+              isMoving={isActuallyMoving}
+              facingRight={facingRight}
+            />
+          </div>
           {hasEvents && (
-            <div className="absolute top-full mt-2 pointer-events-none z-50">
+            <div className="absolute top-[80%] mt-2 pointer-events-none z-50">
               <SpeechBubble message={nyangMessage} isVisible={showNyangBubble} />
             </div>
           )}
-
-          {/* 연동 위젯 */}
           {showCalendar && (
-            <div className="absolute top-full mt-[-20px] z-[9999] pointer-events-auto">
+            <div className="absolute top-[80%] mt-[-10px] z-[9999] pointer-events-auto">
               <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
             </div>
           )}
@@ -171,7 +180,7 @@ function App() {
         <button 
           onClick={handleManualWait} 
           style={{ background: 'transparent', backgroundColor: 'transparent', border: 'none', padding: 0, outline: 'none', cursor: 'pointer', appearance: 'none' }}
-          className="active:opacity-70"
+          className="active:opacity-70 pointer-events-auto"
         >
           <img src="/wait_2.png?v=1" alt="기다리기" className="w-12 h-auto block" style={{ imageRendering: 'pixelated' }} />
         </button>

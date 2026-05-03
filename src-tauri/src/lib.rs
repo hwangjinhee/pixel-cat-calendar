@@ -127,6 +127,7 @@ pub fn run() {
                                 curr_x = pos.x as f64 / f;
                                 curr_y = pos.y as f64 / f;
                                 let _ = bwin.set_position(LogicalPosition::new(curr_x, curr_y));
+                                let _ = bwin.set_ignore_cursor_events(true); // 클릭 통과
                             }
                         }
                         if last_moving {
@@ -135,6 +136,8 @@ pub fn run() {
                         }
                         continue;
                     }
+                    
+                    let _ = bwin.set_ignore_cursor_events(false); // 클릭 받기
 
                     if !last_moving && following {
                         if let Ok(pos) = win.outer_position() {
