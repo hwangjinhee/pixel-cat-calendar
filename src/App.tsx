@@ -41,12 +41,12 @@ function App() {
         let targetWidth = 130;
         let targetHeight = 130;
 
+        // 위젯이나 말풍선이 켜지면 높이를 충분히 확보
         if (showNyangBubble || showCalendar || hasEvents) {
-          targetWidth = 150;
-          targetHeight = 350;
+          targetWidth = 200;
+          targetHeight = 400;
         }
 
-        // 현재 크기와 다를 때만 업데이트하여 무한 루프나 부하 방지
         if (currentSize.width !== targetWidth || currentSize.height !== targetHeight) {
           await mainWin.setSize(new LogicalSize(targetWidth, targetHeight));
         }
@@ -156,25 +156,40 @@ function App() {
     if (hasEvents) setShowCalendar(false);
   }, [hasEvents]);
 
+  // 마우스 이벤트 투과 처리
+  useEffect(() => {
+    const mainWin = getCurrentWebviewWindow();
+    const handleMouseMove = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const isInteractive = target.closest('.pointer-events-auto');
+      mainWin.setIgnoreCursorEvents(!isInteractive);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   if (windowLabel === "main") {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-start bg-transparent overflow-hidden select-none relative pt-2">
+      <div className="fixed inset-0 w-full h-full flex flex-col items-center justify-start bg-transparent overflow-hidden select-none pt-2">
         {/* 고양이 영역 */}
-        <Cat 
-          onCatClick={() => { if (!hasEvents) setShowCalendar(!showCalendar); }} 
-          isSleeping={!hasEvents} 
-          isMoving={isActuallyMoving}
-          facingRight={facingRight}
-        />      
-        {/* 말풍선 & 위젯 - 창 아래로 자연스럽게 배치 */}
-        <div className="relative w-full flex flex-col items-center gap-2">
+        <div className="pointer-events-auto flex-shrink-0">
+          <Cat 
+            onCatClick={() => { if (!hasEvents) setShowCalendar(!showCalendar); }} 
+            isSleeping={!hasEvents} 
+            isMoving={isActuallyMoving}
+            facingRight={facingRight}
+          />      
+        </div>
+        
+        {/* 말풍선 & 위젯 영역 */}
+        <div className="w-full flex flex-col items-center gap-2 flex-shrink-0">
           {hasEvents && (
-            <div className="mt-2 pointer-events-none z-50">
+            <div className="pointer-events-none z-50">
               <SpeechBubble message={nyangMessage} isVisible={showNyangBubble} />
             </div>
           )}
           {showCalendar && (
-            <div className="mt-[-10px] z-[9999] pointer-events-auto">
+            <div className="z-[9999] pointer-events-auto">
               <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
             </div>
           )}
@@ -185,10 +200,10 @@ function App() {
 
   if (windowLabel === "sleep-button") {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-transparent overflow-hidden">
+      <div className="fixed inset-0 w-full h-full flex items-center justify-center bg-transparent overflow-hidden">
         <button 
           onClick={handleManualWait} 
-          style={{ background: 'transparent', backgroundColor: 'transparent', border: 'none', padding: 0, outline: 'none', cursor: 'pointer', appearance: 'none' }}
+          style={{ background: 'transparent', border: 'none', padding: 0, outline: 'none', cursor: 'pointer' }}
           className="active:opacity-70 pointer-events-auto"
         >
           <img src="/wait_2.png?v=1" alt="기다리기" className="w-12 h-auto block" style={{ imageRendering: 'pixelated' }} />
