@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface CatProps {
   onCatClick: () => void;
@@ -14,6 +14,8 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
     return "/sitting_cat.gif?v=2";
   };
 
+  const stateKey = isSleeping ? "sleeping" : isMoving ? "moving" : "sitting";
+
   return (
     <div 
       style={{ 
@@ -26,62 +28,53 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
         justifyContent: "center",
         userSelect: "none",
         backgroundColor: "transparent",
-        zIndex: 50 // 위젯(999)보다 낮게 설정
+        zIndex: 50
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* 1. 드래그 전용 상단 영역 (40%) - 이미지 크기 내로 제한 */}
+      {/* 1. 드래그 영역 */}
       <div 
         data-tauri-drag-region
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          width: "120px", // 명시적 고정
-          height: "48px",  // 120 * 0.4
-          zIndex: 60,
-          cursor: "move",
-          backgroundColor: "rgba(0,0,0,0)"
+          top: 0, left: 0, width: "120px", height: "48px",
+          zIndex: 60, cursor: "move", backgroundColor: "rgba(0,0,0,0)"
         }}
       />
 
-      {/* 2. 클릭 전용 하단 영역 (60%) - 이미지 크기 내로 제한 */}
+      {/* 2. 클릭 영역 */}
       <div 
-        onClick={(e) => {
-          e.stopPropagation();
-          onCatClick();
-        }}
+        onClick={(e) => { e.stopPropagation(); onCatClick(); }}
         style={{
           position: "absolute",
-          bottom: 0,
-          left: 0,
-          width: "120px", // 명시적 고정
-          height: "72px",  // 120 * 0.6
-          zIndex: 60,
-          cursor: "pointer",
-          backgroundColor: "rgba(0,0,0,0)",
-          pointerEvents: "auto"
+          bottom: 0, left: 0, width: "120px", height: "72px",
+          zIndex: 60, cursor: "pointer", backgroundColor: "rgba(0,0,0,0)", pointerEvents: "auto"
         }}
       />
 
-      {/* 3. 시각적 고양이 이미지 */}
-      <motion.div
-        animate={{ scaleX: facingRight ? -1.0 : 1.0 }}
-        transition={{ duration: 0.3 }}
-        style={{ pointerEvents: "none", zIndex: 55 }}
-      >
-        <img 
-          src={getCatSrc()} 
-          alt="cat"
-          draggable="false"
-          style={{ 
-            width: "100px", 
-            height: "100px", 
-            imageRendering: "pixelated",
-            display: "block"
-          }}
-        />
-      </motion.div>
+      {/* 3. 시각적 이미지 (AnimatePresence로 겹침 방지) */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={stateKey}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, scaleX: facingRight ? -1.0 : 1.0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          style={{ pointerEvents: "none", zIndex: 55 }}
+        >
+          <img 
+            src={getCatSrc()} 
+            alt="cat"
+            draggable="false"
+            style={{ 
+              width: "100px", 
+              height: "100px", 
+              imageRendering: "pixelated",
+              display: "block"
+            }}
+          />
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 };

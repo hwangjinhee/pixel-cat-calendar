@@ -39,14 +39,10 @@ fn sync_state(app: tauri::AppHandle, event_id: Option<String>) {
     let mut current_id = CURRENT_ACTIVE_EVENT_ID.lock().unwrap();
     *current_id = event_id.clone();
     let slept_id = SLEPT_EVENT_ID.lock().unwrap();
-    
     let should_follow = if let Some(curr) = &*current_id {
         if let Some(slept) = &*slept_id { curr != slept } else { true }
     } else { false };
-
     IS_FOLLOWING_INTERNAL.store(should_follow, Ordering::SeqCst);
-    
-    // 버튼 창 노출 여부 결정
     if let Some(btn_win) = app.get_webview_window("sleep-button") {
         if should_follow { let _ = btn_win.show(); } else { let _ = btn_win.hide(); }
     }
@@ -97,16 +93,6 @@ pub fn run() {
                 }
             }
 
-            // 초기 위치 설정
-            if let Ok(Some(monitor)) = main_win.primary_monitor() {
-                let factor = monitor.scale_factor();
-                let size = monitor.size();
-                let x = (size.width as f64 / factor) - 170.0;
-                let y = (size.height as f64 / factor) - 170.0;
-                let _ = main_win.set_position(LogicalPosition::new(x, y));
-                let _ = btn_win.set_position(LogicalPosition::new(x, y));
-            }
-
             let win = main_win.clone();
             let bwin = btn_win.clone();
             tauri::async_runtime::spawn(async move {
@@ -120,6 +106,24 @@ pub fn run() {
                     interval.tick().await;
                     let following = IS_FOLLOWING_INTERNAL.load(Ordering::SeqCst);
 
+                    // 1. 백엔드 레벨의 마우스 투과 처리 (윈도우 전용)
+                    #[cfg(target_os = "windows")]
+                    {
+                        use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
+                        use windows_sys::Win32::Foundation::POINT;
+                        let mut p = POINT { x: 0, y: 0 };
+                        unsafe {
+                            if GetCursorPos(&mut p) != 0 {
+                                if let Ok(win_pos) = win.outer_position() {
+                                    let dx = (p.x as f64 - win_pos.x as f64).abs();
+                                    let dy = (p.y as f64 - win_pos.y as f64).abs();
+                                    // 창 중앙(고양이 위치) 근처일 때만 클릭 활성화 (약 150px 범위)
+                                    let _ = win.set_ignore_cursor_events(dx > 150.0 || dy > 200.0);
+                                }
+                            }
+                        }
+                    }
+
                     if !following {
                         if let Ok(pos) = win.outer_position() {
                             if let Ok(Some(m)) = win.primary_monitor() {
@@ -127,7 +131,7 @@ pub fn run() {
                                 curr_x = pos.x as f64 / f;
                                 curr_y = pos.y as f64 / f;
                                 let _ = bwin.set_position(LogicalPosition::new(curr_x, curr_y));
-                                let _ = bwin.set_ignore_cursor_events(true); // 클릭 통과
+                                let _ = bwin.set_ignore_cursor_events(true);
                             }
                         }
                         if last_moving {
@@ -137,14 +141,7 @@ pub fn run() {
                         continue;
                     }
                     
-                    let _ = bwin.set_ignore_cursor_events(false); // 클릭 받기
-
-                    if !last_moving && following {
-                        if let Ok(pos) = win.outer_position() {
-                            curr_x = pos.x as f64 / factor;
-                            curr_y = pos.y as f64 / factor;
-                        }
-                    }
+                    let _ = bwin.set_ignore_cursor_events(false);
 
                     let mut target_x = curr_x;
                     let mut target_y = curr_y;
