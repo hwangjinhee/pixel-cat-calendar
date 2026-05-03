@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow, getAllWebviewWindows } from "@tauri-apps/api/webviewWindow";
-import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
+import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { Cat } from "./components/Cat";
 import { CalendarWidget } from "./components/CalendarWidget";
 import { SpeechBubble } from "./components/SpeechBubble";
@@ -22,40 +22,19 @@ function App() {
   const [nyangMessage, setNyangMessage] = useState("");
   const [isActuallyMoving, setIsActuallyMoving] = useState(false);
   const [facingRight, setFacingRight] = useState(false);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
   
   const manualWaitEventIdRef = useRef<string | null>(null);
   const bubbleIntervalRef = useRef<any>(null);
 
+  const addLog = (msg: string) => {
+    setDebugLog(prev => [msg, ...prev].slice(0, 5));
+    console.log(msg);
+  };
+
   useEffect(() => {
     setWindowLabel(getCurrentWebviewWindow().label);
   }, []);
-
-  // 창 크기 동적 조절 (말풍선/위젯 여부에 따라)
-  useEffect(() => {
-    if (windowLabel !== "main") return;
-    const updateWindowSize = async () => {
-      try {
-        const mainWin = getCurrentWebviewWindow();
-        const currentSize = await mainWin.innerSize();
-        
-        let targetWidth = 130;
-        let targetHeight = 130;
-
-        // 위젯이나 말풍선이 켜지면 높이를 충분히 확보
-        if (showNyangBubble || showCalendar || hasEvents) {
-          targetWidth = 200;
-          targetHeight = 400;
-        }
-
-        if (currentSize.width !== targetWidth || currentSize.height !== targetHeight) {
-          await mainWin.setSize(new LogicalSize(targetWidth, targetHeight));
-        }
-      } catch (e) {
-        console.error("Window resize failed:", e);
-      }
-    };
-    updateWindowSize();
-  }, [showNyangBubble, showCalendar, hasEvents, windowLabel]);
 
   useEffect(() => {
     let unlisten: any;
@@ -99,7 +78,7 @@ function App() {
         setHasEvents(false);
         if (!isWaiting) setNextEvent(null);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { addLog(`Error: ${err}`); }
   };
 
   const triggerBubble = (event: CalendarEvent) => {
@@ -112,6 +91,7 @@ function App() {
   };
 
   const handleManualWait = async () => {
+    addLog("Wait button clicked");
     setHasEvents(false);
     setShowNyangBubble(false);
     if (nextEvent) {
@@ -156,43 +136,54 @@ function App() {
     if (hasEvents) setShowCalendar(false);
   }, [hasEvents]);
 
-  // 마우스 이벤트 투과 처리
+  // 마우스 이벤트 투과 로직 (디버깅 포함)
   useEffect(() => {
+    if (windowLabel !== "main") return;
     const mainWin = getCurrentWebviewWindow();
     const handleMouseMove = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+      // .pointer-events-auto 속성을 가진 요소 위에 있을 때만 마우스 이벤트를 활성화
       const isInteractive = target.closest('.pointer-events-auto');
       mainWin.setIgnoreCursorEvents(!isInteractive);
     };
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+  }, [windowLabel]);
 
   if (windowLabel === "main") {
     return (
-      <div className="fixed inset-0 w-full h-full flex flex-col items-center justify-start bg-transparent overflow-hidden select-none pt-2">
-        {/* 고양이 영역 */}
-        <div className="pointer-events-auto flex-shrink-0">
-          <Cat 
-            onCatClick={() => { if (!hasEvents) setShowCalendar(!showCalendar); }} 
-            isSleeping={!hasEvents} 
-            isMoving={isActuallyMoving}
-            facingRight={facingRight}
-          />      
+      <div 
+        className="w-full h-full flex flex-col items-center justify-start bg-transparent overflow-hidden select-none relative pt-4"
+      >
+        {/* 디버그 로그 패널 (윈도우 테스트용, 작게 노출) */}
+        <div className="absolute top-0 right-0 p-1 text-[8px] text-red-500 bg-white/20 pointer-events-none z-[10000]">
+          {debugLog.map((log, i) => <div key={i}>{log}</div>)}
         </div>
-        
-        {/* 말풍선 & 위젯 영역 */}
-        <div className="w-full flex flex-col items-center gap-2 flex-shrink-0">
-          {hasEvents && (
-            <div className="pointer-events-none z-50">
-              <SpeechBubble message={nyangMessage} isVisible={showNyangBubble} />
-            </div>
-          )}
-          {showCalendar && (
-            <div className="z-[9999] pointer-events-auto">
-              <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
-            </div>
-          )}
+
+        <div className="relative flex flex-col items-center pointer-events-none">
+          <div className="pointer-events-auto">
+            <Cat 
+              onCatClick={() => { 
+                addLog("Cat clicked");
+                if (!hasEvents) setShowCalendar(!showCalendar); 
+              }} 
+              isSleeping={!hasEvents} 
+              isMoving={isActuallyMoving}
+              facingRight={facingRight}
+            />      
+          </div>
+          <div className="w-full flex flex-col items-center gap-2 mt-2">
+            {hasEvents && (
+              <div className="pointer-events-none z-50">
+                <SpeechBubble message={nyangMessage} isVisible={showNyangBubble} />
+              </div>
+            )}
+            {showCalendar && (
+              <div className="z-[9999] pointer-events-auto">
+                <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -200,7 +191,7 @@ function App() {
 
   if (windowLabel === "sleep-button") {
     return (
-      <div className="fixed inset-0 w-full h-full flex items-center justify-center bg-transparent overflow-hidden">
+      <div className="w-full h-full flex items-center justify-center bg-transparent overflow-hidden">
         <button 
           onClick={handleManualWait} 
           style={{ background: 'transparent', border: 'none', padding: 0, outline: 'none', cursor: 'pointer' }}
