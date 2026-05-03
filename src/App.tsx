@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow, getAllWebviewWindows } from "@tauri-apps/api/webviewWindow";
-import { LogicalPosition } from "@tauri-apps/api/dpi";
+import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { Cat } from "./components/Cat";
 import { CalendarWidget } from "./components/CalendarWidget";
 import { SpeechBubble } from "./components/SpeechBubble";
@@ -29,6 +29,21 @@ function App() {
   useEffect(() => {
     setWindowLabel(getCurrentWebviewWindow().label);
   }, []);
+
+  // 창 크기 동적 조절 (말풍선/위젯 여부에 따라)
+  useEffect(() => {
+    if (windowLabel !== "main") return;
+    const updateWindowSize = async () => {
+      const win = getCurrentWebviewWindow();
+      // 말풍선이나 위젯이 켜져있으면 창을 아래로 늘림
+      if (showNyangBubble || showCalendar || hasEvents) {
+        await win.setSize(new LogicalSize(150, 350));
+      } else {
+        await win.setSize(new LogicalSize(130, 130));
+      }
+    };
+    updateWindowSize();
+  }, [showNyangBubble, showCalendar, hasEvents, windowLabel]);
 
   useEffect(() => {
     let unlisten: any;
@@ -87,16 +102,13 @@ function App() {
   const handleManualWait = async () => {
     setHasEvents(false);
     setShowNyangBubble(false);
-
     if (nextEvent) {
       const eventId = `${nextEvent.title}-${nextEvent.start_time}`;
       manualWaitEventIdRef.current = eventId;
       await invoke("mark_manual_sleep");
     }
-
     const btnWin = getCurrentWebviewWindow() as any;
     btnWin.hide();
-
     const pos = await btnWin.outerPosition();
     const monitor = await btnWin.currentMonitor();
     if (monitor) {
@@ -134,24 +146,27 @@ function App() {
 
   if (windowLabel === "main") {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-transparent overflow-visible select-none relative">
+      <div className="w-full h-full flex flex-col items-center justify-start bg-transparent overflow-hidden select-none relative pt-2">
+        {/* 고양이 영역 */}
         <Cat 
           onCatClick={() => { if (!hasEvents) setShowCalendar(!showCalendar); }} 
           isSleeping={!hasEvents} 
           isMoving={isActuallyMoving}
           facingRight={facingRight}
         />      
-        {/* 말풍선 & 위젯 - 창 크기가 작으므로 overflow-visible을 이용해 창 밖으로 렌더링 */}
-        {hasEvents && (
-          <div className="absolute top-full mt-2 pointer-events-none z-50">
-            <SpeechBubble message={nyangMessage} isVisible={showNyangBubble} />
-          </div>
-        )}
-        {showCalendar && (
-          <div className="absolute top-full mt-[-20px] z-[9999] pointer-events-auto">
-            <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
-          </div>
-        )}
+        {/* 말풍선 & 위젯 - 창 아래로 자연스럽게 배치 */}
+        <div className="relative w-full flex flex-col items-center gap-2">
+          {hasEvents && (
+            <div className="mt-2 pointer-events-none z-50">
+              <SpeechBubble message={nyangMessage} isVisible={showNyangBubble} />
+            </div>
+          )}
+          {showCalendar && (
+            <div className="mt-[-10px] z-[9999] pointer-events-auto">
+              <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
+            </div>
+          )}
+        </div>
       </div>
     );
   }
