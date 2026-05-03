@@ -21,30 +21,31 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
         height: "120px", 
         position: "relative",
         display: "flex",
-        flexDirection: "column", // 상하 분할을 위해 flex-column 사용
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        userSelect: "none"
+        userSelect: "none",
+        backgroundColor: "transparent",
+        zIndex: 50 // 위젯(999)보다 낮게 설정
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* 1. 드래그 전용 상단 영역 (고양이 머리 부분 - 40%) */}
+      {/* 1. 드래그 전용 상단 영역 (40%) - 이미지 크기 내로 제한 */}
       <div 
         data-tauri-drag-region
         style={{
           position: "absolute",
           top: 0,
           left: 0,
-          width: "100%",
-          height: "40%", // 상단 40%
-          zIndex: 20,
+          width: "120px", // 명시적 고정
+          height: "48px",  // 120 * 0.4
+          zIndex: 60,
           cursor: "move",
-          backgroundColor: "rgba(0,0,0,0.01)" // 마우스 이벤트 포착용 미세 배경
+          backgroundColor: "rgba(0,0,0,0)"
         }}
-        title="이 부분을 잡고 드래그하세요"
       />
 
-      {/* 2. 클릭 전용 하단 영역 (고양이 몸통 부분 - 60%) */}
+      {/* 2. 클릭 전용 하단 영역 (60%) - 이미지 크기 내로 제한 */}
       <div 
         onClick={(e) => {
           e.stopPropagation();
@@ -54,20 +55,20 @@ export const Cat = ({ onCatClick, isSleeping, isMoving, facingRight }: CatProps)
           position: "absolute",
           bottom: 0,
           left: 0,
-          width: "100%",
-          height: "60%", // 하단 60%
-          zIndex: 20,
+          width: "120px", // 명시적 고정
+          height: "72px",  // 120 * 0.6
+          zIndex: 60,
           cursor: "pointer",
-          backgroundColor: "rgba(0,0,0,0.01)" // 클릭 감도용 미세 배경
+          backgroundColor: "rgba(0,0,0,0)",
+          pointerEvents: "auto"
         }}
-        title="이 부분을 클릭해서 연동 위젯을 여세요"
       />
 
-      {/* 3. 시각적 고양이 이미지 (이벤트 투과) */}
+      {/* 3. 시각적 고양이 이미지 */}
       <motion.div
         animate={{ scaleX: facingRight ? -1.0 : 1.0 }}
         transition={{ duration: 0.3 }}
-        style={{ pointerEvents: "none", zIndex: 10 }}
+        style={{ pointerEvents: "none", zIndex: 55 }}
       >
         <img 
           src={getCatSrc()} 

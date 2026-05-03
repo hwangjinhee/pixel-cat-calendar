@@ -67,7 +67,6 @@ function App() {
         const isNewEvent = !hasEvents || nextEvent?.title !== targetEvent.title;
         setNextEvent(targetEvent);
         setHasEvents(true);
-        // 새로운 일정이 시작되면 즉시 말풍선 트리거
         if (isNewEvent) triggerBubble(targetEvent);
       } else {
         setHasEvents(false);
@@ -86,7 +85,6 @@ function App() {
   };
 
   const handleManualWait = async () => {
-    // 1. 즉시 현재 창(버튼 창) 숨기기
     const btnWin = getCurrentWebviewWindow() as any;
     await btnWin.hide();
 
@@ -97,18 +95,16 @@ function App() {
     }
 
     const pos = await btnWin.outerPosition();
-    // @ts-ignore: Tauri v2 API type mismatch
+    // @ts-ignore
     const monitor = await btnWin.currentMonitor();
     if (monitor) {
       const f = monitor.scaleFactor;
       const x = (pos.x / f);
       const y = (pos.y / f);
-      
       const wins = await getAllWebviewWindows();
       const mainWin = wins.find(w => w.label === "main") as any;
       if (mainWin) {
         await mainWin.setPosition(new LogicalPosition(x, y));
-        // 고양이가 앉도록 프론트엔드 상태 즉시 변경
         setHasEvents(false);
       }
     }
@@ -121,12 +117,9 @@ function App() {
     return () => clearInterval(interval);
   }, [nextEvent?.title, hasEvents]);
 
-  // 말풍선 반복 타이머 (20초 주기)
   useEffect(() => {
     if (hasEvents && nextEvent) {
-      bubbleIntervalRef.current = setInterval(() => {
-        triggerBubble(nextEvent);
-      }, 20000);
+      bubbleIntervalRef.current = setInterval(() => { triggerBubble(nextEvent); }, 20000);
     } else {
       if (bubbleIntervalRef.current) clearInterval(bubbleIntervalRef.current);
       setShowNyangBubble(false);
@@ -140,26 +133,39 @@ function App() {
 
   if (windowLabel === "main") {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-transparent overflow-hidden select-none relative">
-        <Cat 
-          onCatClick={() => { if (!hasEvents) setShowCalendar(!showCalendar); }} 
-          isSleeping={!hasEvents} 
-          isMoving={isActuallyMoving}
-          facingRight={facingRight}
-        />      
-        {hasEvents && (
-          <div className="absolute bottom-[70%] mb-2 pointer-events-none">
-            <SpeechBubble message={nyangMessage} isVisible={showNyangBubble} />
-          </div>
-        )}
-        {showCalendar && (
-          <div 
-            className="absolute z-[100] top-[60%] left-[60%] pointer-events-auto" 
-            style={{ width: 'max-content', transform: 'translateY(-20px)' }}
-          >
-            <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
-          </div>
-        )}
+      <div className="w-full h-full flex flex-col items-center justify-center bg-transparent overflow-hidden select-none relative">
+        <div className="relative flex flex-col items-center">
+          {/* 말풍선 */}
+          {hasEvents && (
+            <div className="absolute bottom-[100%] mb-2 pointer-events-none">
+              <SpeechBubble message={nyangMessage} isVisible={showNyangBubble} />
+            </div>
+          )}
+          
+          {/* 고양이 */}
+          <Cat 
+            onCatClick={() => { if (!hasEvents) setShowCalendar(!showCalendar); }} 
+            isSleeping={!hasEvents} 
+            isMoving={isActuallyMoving}
+            facingRight={facingRight}
+          />
+
+          {/* 위젯 - 고양이 바로 아래에 배치 (gap 없이 바짝 붙임) */}
+          {showCalendar && (
+            <div className="absolute top-full mt-[-10px] z-[9999] pointer-events-auto">
+              <CalendarWidget isVisible={showCalendar} onClose={() => setShowCalendar(false)} />
+            </div>
+          )}
+          
+          {/* 기다리기 버튼 */}
+          {hasEvents && (
+            <div className="mt-2 pointer-events-auto">
+              <button onClick={handleManualWait} className="active:opacity-70 cursor-pointer bg-transparent border-none p-0">
+                <img src="/wait_2.png?v=1" alt="기다리기" className="w-12 h-auto block" style={{ imageRendering: 'pixelated' }} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -167,11 +173,7 @@ function App() {
   if (windowLabel === "sleep-button") {
     return (
       <div className="w-full h-full flex items-center justify-center bg-transparent overflow-hidden">
-        <button 
-          onClick={handleManualWait} 
-          style={{ background: 'transparent', border: 'none', padding: 0, outline: 'none', boxShadow: 'none' }}
-          className="active:opacity-70 cursor-pointer"
-        >
+        <button onClick={handleManualWait} className="active:opacity-70 cursor-pointer bg-transparent border-none p-0">
           <img src="/wait_2.png?v=1" alt="기다리기" className="w-12 h-auto block" style={{ imageRendering: 'pixelated' }} />
         </button>
       </div>
