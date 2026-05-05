@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen, emit } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow, getAllWebviewWindows } from "@tauri-apps/api/webviewWindow";
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { Cat } from "./components/Cat";
@@ -13,23 +13,37 @@ interface CalendarEvent {
   source: string;
 }
 
+type CatStateType = "WALKING" | "SITTING" | "SLEEPING";
+
 function App() {
   const [windowLabel, setWindowLabel] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
-  const [hasEvents, setHasEvents] = useState(false);
+  const [catState, setCatState] = useState<CatStateType>("SLEEPING");
+  const [isManualWaiting, setIsManualWaiting] = useState(false);
   const [nextEvent, setNextEvent] = useState<CalendarEvent | null>(null);
   const [followingEvent, setFollowingEvent] = useState<CalendarEvent | null>(null);
   const [showNyangBubble, setShowNyangBubble] = useState(false);
   const [nyangMessage, setNyangMessage] = useState("");
   const [followingMessage, setFollowingMessage] = useState("");
-  const [isActuallyMoving, setIsActuallyMoving] = useState(false);
   const [facingRight, setFacingRight] = useState(false);
   
-  const manualWaitEventIdRef = useRef<string | null>(null);
   const bubbleIntervalRef = useRef<any>(null);
 
   useEffect(() => {
-    setWindowLabel(getCurrentWebviewWindow().label);
+    const label = getCurrentWebviewWindow().label;
+    setWindowLabel(label);
+
+    const unlistenCat = listen<{state: CatStateType, facing_right: boolean}>("cat-state", (event) => {
+      setCatState(event.payload.state);
+      setFacingRight(event.payload.facing_right);
+    });
+
+    const unlistenButton = listen<{event: CalendarEvent | null, isWaiting: boolean}>("update-button-ui", (event) => {
+      setNextEvent(event.payload.event);
+      setIsManualWaiting(event.payload.isWaiting);
+    });
+
+    return () => { unlistenCat.then(f => f()); unlistenButton.then(f => f()); };
   }, []);
 
   useEffect(() => {
@@ -38,11 +52,10 @@ function App() {
       try {
         const mainWin = getCurrentWebviewWindow();
         const currentSize = await mainWin.innerSize();
-        let targetWidth = 130;
-        let targetHeight = 130;
-        if (showNyangBubble || showCalendar || hasEvents) {
-          targetWidth = 200;
-          targetHeight = 450; // 이중 말풍선을 위해 높이 상향
+        let targetWidth = 150;
+        let targetHeight = 150;
+        if (catState !== "SLEEPING" || showCalendar || isManualWaiting || showNyangBubble) {
+          targetHeight = 350;
         }
         if (currentSize.width !== targetWidth || currentSize.height !== targetHeight) {
           await mainWin.setSize(new LogicalSize(targetWidth, targetHeight));
@@ -50,129 +63,125 @@ function App() {
       } catch (e) { console.error(e); }
     };
     updateWindowSize();
-  }, [showNyangBubble, showCalendar, hasEvents, windowLabel]);
-
-  useEffect(() => {
-    let unlisten: any;
-    const setupListen = async () => {
-      unlisten = await listen<{is_moving: boolean, facing_right: boolean}>("cat-move-state", (event) => {
-        setIsActuallyMoving(event.payload.is_moving);
-        setFacingRight(event.payload.facing_right);
-      });
-    };
-    setupListen();
-    return () => { if (unlisten) unlisten(); };
-  }, []);
+  }, [catState, showCalendar, isManualWaiting, showNyangBubble, windowLabel]);
 
   const checkEvents = async () => {
+    if (windowLabel !== "main") return;
+
     try {
       const allEvents = await invoke<CalendarEvent[]>("get_all_events");
       const events = allEvents.filter(e => !e.title.includes("생일") && !e.title.toLowerCase().includes("birthday"));
       const now = new Date().getTime();
       
-      let targetEvent: CalendarEvent | null = null;
-      let secondEvent: CalendarEvent | null = null;
+      let target: CalendarEvent | null = null;
+      let second: CalendarEvent | null = null;
 
       for (const event of events) {
-        const startTime = new Date(event.start_time).getTime();
-        const diffMins = (startTime - now) / 60000;
-        if (diffMins > 0 && diffMins <= 10) {
-          if (!targetEvent) targetEvent = event;
-          else { secondEvent = event; break; } // 겹치는 두 번째 일정
+        const start = new Date(event.start_time).getTime();
+        const diff = (start - now) / 60000;
+        if (diff > 0 && diff <= 10) {
+          if (!target) target = event;
+          else if (!second) { second = event; break; }
         }
       }
       
-      const eventId = targetEvent ? `${targetEvent.title}-${targetEvent.start_time}` : null;
-      if (!eventId) manualWaitEventIdRef.current = null;
-      const isWaiting = eventId !== null && manualWaitEventIdRef.current === eventId;
+      const eventId = target ? `${target.title}-${target.start_time}` : null;
+      await invoke("sync_state", { eventId });
 
-      await invoke("sync_state", { eventId: isWaiting ? null : eventId });
+      // 백엔드에서 실시간 대기 상태 확인
+      const isWaiting = await invoke<boolean>("is_waiting_active");
+      
+      await emit("update-button-ui", { event: target, isWaiting: isWaiting });
+      setIsManualWaiting(isWaiting);
 
-      if (targetEvent && !isWaiting) {
-        setNextEvent(targetEvent);
-        setFollowingEvent(secondEvent);
-        setHasEvents(true);
-        if (!hasEvents) triggerBubble(targetEvent, secondEvent);
+      if (target) {
+        setNextEvent(target);
+        setFollowingEvent(second);
+        if (!isWaiting && catState === "SLEEPING") triggerBubble(target, second);
+        else if (isWaiting) {
+          const d1 = Math.max(0, Math.floor((new Date(target.start_time).getTime() - now) / 60000));
+          setNyangMessage(`${target.title} ${d1}분 전! 대기 중이다냥!`);
+          setShowNyangBubble(true);
+        }
       } else {
-        setHasEvents(false);
-        if (!isWaiting) { setNextEvent(null); setFollowingEvent(null); }
+        setNextEvent(null); setFollowingEvent(null);
       }
     } catch (err) { console.error(err); }
   };
 
   const triggerBubble = (event: CalendarEvent, second?: CalendarEvent | null) => {
-    if (manualWaitEventIdRef.current) return;
     const now = new Date().getTime();
-    const diff1 = Math.max(0, Math.floor((new Date(event.start_time).getTime() - now) / 60000));
-    setNyangMessage(`${event.title} 시작까지 ${diff1}분!`);
-    
+    const d1 = Math.max(0, Math.floor((new Date(event.start_time).getTime() - now) / 60000));
+    setNyangMessage(`${event.title} ${d1}분 전!`);
     if (second) {
-      const diff2 = Math.max(0, Math.floor((new Date(second.start_time).getTime() - now) / 60000));
-      setFollowingMessage(`${second.title}도 ${diff2}분 남았다냥!`);
-    } else {
-      setFollowingMessage("");
-    }
-    
+      const d2 = Math.max(0, Math.floor((new Date(second.start_time).getTime() - now) / 60000));
+      setFollowingMessage(`${second.title}도 ${d2}분 남았다냥!`);
+    } else { setFollowingMessage(""); }
     setShowNyangBubble(true);
     setTimeout(() => setShowNyangBubble(false), 7000);
   };
 
   const handleManualWait = async () => {
-    setHasEvents(false);
-    setShowNyangBubble(false);
     if (nextEvent) {
-      manualWaitEventIdRef.current = `${nextEvent.title}-${nextEvent.start_time}`;
       await invoke("mark_manual_sleep");
+      setIsManualWaiting(true);
+      await emit("update-button-ui", { event: nextEvent, isWaiting: true });
     }
-    const btnWin = getCurrentWebviewWindow() as any;
-    btnWin.hide();
-    const pos = await btnWin.outerPosition();
-    const monitor = await btnWin.currentMonitor();
-    if (monitor) {
-      const f = monitor.scaleFactor;
-      const x = pos.x / f; const y = pos.y / f;
-      const wins = await getAllWebviewWindows();
-      const mainWin = wins.find(w => w.label === "main") as any;
-      if (mainWin) {
-        await mainWin.setPosition(new LogicalPosition(x, y));
+    const wins = await getAllWebviewWindows();
+    const mainWin = wins.find(w => w.label === "main") as any;
+    const btnWin = wins.find(w => w.label === "sleep-button") as any;
+    if (btnWin && mainWin) {
+      const pos = await btnWin.outerPosition();
+      const monitor = await btnWin.currentMonitor();
+      if (monitor) {
+        const f = monitor.scaleFactor;
+        // 버튼이 왼쪽에 있으므로 고양이는 버튼의 오른쪽(+70) 아래(+20)로 이동
+        await mainWin.setPosition(new LogicalPosition(pos.x / f + 70, pos.y / f + 20));
         await mainWin.setFocus(); 
       }
     }
+    setShowNyangBubble(true);
+  };
+
+  const handleWakeUp = async () => {
+    await invoke("reset_manual_sleep");
+    setIsManualWaiting(false);
+    await emit("update-button-ui", { event: nextEvent, isWaiting: false });
+    if (windowLabel === "main") await checkEvents();
   };
 
   useEffect(() => {
-    checkEvents();
-    const interval = setInterval(checkEvents, 5000);
-    return () => clearInterval(interval);
-  }, [nextEvent?.title, hasEvents]);
+    if (windowLabel === "main") {
+      checkEvents();
+      const interval = setInterval(checkEvents, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [windowLabel, nextEvent?.title, isManualWaiting]);
 
   useEffect(() => {
-    if (hasEvents && nextEvent) {
+    const isAwake = catState !== "SLEEPING" || isManualWaiting;
+    if (isAwake && nextEvent) {
+      if (bubbleIntervalRef.current) clearInterval(bubbleIntervalRef.current);
       bubbleIntervalRef.current = setInterval(() => { triggerBubble(nextEvent, followingEvent); }, 20000);
     } else {
       if (bubbleIntervalRef.current) clearInterval(bubbleIntervalRef.current);
       setShowNyangBubble(false);
     }
     return () => { if (bubbleIntervalRef.current) clearInterval(bubbleIntervalRef.current); };
-  }, [hasEvents, nextEvent?.title, followingEvent?.title]);
-
-  useEffect(() => {
-    if (hasEvents) setShowCalendar(false);
-  }, [hasEvents]);
+  }, [catState, isManualWaiting, nextEvent?.title, followingEvent?.title]);
 
   if (windowLabel === "main") {
     return (
-      <div className="fixed inset-0 w-full h-full flex flex-col items-center justify-start bg-transparent overflow-hidden select-none pt-2">
+      <div className="fixed inset-0 w-full h-full flex flex-col items-center justify-start bg-transparent overflow-visible select-none pt-2">
         <div className="pointer-events-auto flex-shrink-0">
           <Cat 
-            onCatClick={() => { if (!hasEvents) setShowCalendar(!showCalendar); }} 
-            isSleeping={!hasEvents} 
-            isMoving={isActuallyMoving}
+            onCatClick={() => { if (catState === "SLEEPING" && !isManualWaiting) setShowCalendar(!showCalendar); }} 
+            state={catState}
             facingRight={facingRight}
           />      
         </div>
         <div className="w-full flex flex-col items-center gap-1 flex-shrink-0">
-          {hasEvents && showNyangBubble && (
+          {showNyangBubble && (
             <div className="flex flex-col items-center gap-1 pointer-events-none z-50">
               <SpeechBubble message={nyangMessage} isVisible={true} />
               {followingMessage && <SpeechBubble message={followingMessage} isVisible={true} />}
@@ -191,9 +200,19 @@ function App() {
   if (windowLabel === "sleep-button") {
     return (
       <div className="fixed inset-0 w-full h-full flex items-center justify-center bg-transparent overflow-hidden">
-        <button onClick={handleManualWait} style={{ background: 'transparent', border: 'none', padding: 0, outline: 'none', cursor: 'pointer' }} className="active:opacity-70 pointer-events-auto">
-          <img src="/wait_2.png?v=1" alt="기다리기" className="w-12 h-auto block" style={{ imageRendering: 'pixelated' }} />
-        </button>
+        {nextEvent ? (
+          <div className="pointer-events-auto">
+            {isManualWaiting ? (
+              <button onClick={handleWakeUp} style={{ background: 'transparent', border: 'none', padding: 0, outline: 'none', cursor: 'pointer' }} className="active:opacity-70">
+                <img src="/up.png?v=1" alt="일어서기" className="w-10 h-auto block" style={{ imageRendering: 'pixelated' }} />
+              </button>
+            ) : (
+              <button onClick={handleManualWait} style={{ background: 'transparent', border: 'none', padding: 0, outline: 'none', cursor: 'pointer' }} className="active:opacity-70">
+                <img src="/wait_2.png?v=1" alt="기다리기" className="w-10 h-auto block" style={{ imageRendering: 'pixelated' }} />
+              </button>
+            )}
+          </div>
+        ) : null}
       </div>
     );
   }

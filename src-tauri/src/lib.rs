@@ -39,12 +39,16 @@ fn sync_state(app: tauri::AppHandle, event_id: Option<String>) {
     let mut current_id = CURRENT_ACTIVE_EVENT_ID.lock().unwrap();
     *current_id = event_id.clone();
     let slept_id = SLEPT_EVENT_ID.lock().unwrap();
-    let should_follow = if let Some(curr) = &*current_id {
-        if let Some(slept) = &*slept_id { curr != slept } else { true }
+    
+    let is_slept = if let (Some(curr), Some(slept)) = (&*current_id, &*slept_id) {
+        curr == slept
     } else { false };
+
+    let should_follow = current_id.is_some() && !is_slept;
     IS_FOLLOWING_INTERNAL.store(should_follow, Ordering::SeqCst);
+    
     if let Some(btn_win) = app.get_webview_window("sleep-button") {
-        if should_follow { let _ = btn_win.show(); } else { let _ = btn_win.hide(); }
+        if current_id.is_some() { let _ = btn_win.show(); } else { let _ = btn_win.hide(); }
     }
 }
 
@@ -55,6 +59,23 @@ fn mark_manual_sleep() {
         let mut slept_id = SLEPT_EVENT_ID.lock().unwrap();
         *slept_id = Some(id.clone());
         IS_FOLLOWING_INTERNAL.store(false, Ordering::SeqCst);
+    }
+}
+
+#[tauri::command]
+fn reset_manual_sleep() {
+    let mut slept_id = SLEPT_EVENT_ID.lock().unwrap();
+    *slept_id = None;
+}
+
+#[tauri::command]
+fn is_waiting_active() -> bool {
+    let current_id = CURRENT_ACTIVE_EVENT_ID.lock().unwrap();
+    let slept_id = SLEPT_EVENT_ID.lock().unwrap();
+    if let (Some(curr), Some(slept)) = (&*current_id, &*slept_id) {
+        curr == slept
+    } else {
+        false
     }
 }
 
@@ -73,6 +94,8 @@ pub fn run() {
             get_all_events, 
             sync_state, 
             mark_manual_sleep,
+            reset_manual_sleep,
+            is_waiting_active,
             log_message,
             calendar::google::google_login,
             calendar::google::google_logout,
@@ -97,16 +120,23 @@ pub fn run() {
             let bwin = btn_win.clone();
             tauri::async_runtime::spawn(async move {
                 let mut interval = time::interval(Duration::from_millis(16));
-                let initial_pos = win.outer_position().unwrap_or_default();
-                let factor = win.current_monitor().ok().flatten().map(|m| m.scale_factor()).unwrap_or(1.0);
-                let (mut curr_x, mut curr_y) = (initial_pos.x as f64 / factor, initial_pos.y as f64 / factor);
-                let (mut last_facing_right, mut last_moving) = (false, false);
+                let mut curr_x = 0.0;
+                let mut curr_y = 0.0;
+                let mut is_init = false;
+                let mut last_state_payload = String::new();
 
                 loop {
                     interval.tick().await;
                     let following = IS_FOLLOWING_INTERNAL.load(Ordering::SeqCst);
+                    let is_manual_waiting = {
+                        let current_id = CURRENT_ACTIVE_EVENT_ID.lock().unwrap();
+                        let slept_id = SLEPT_EVENT_ID.lock().unwrap();
+                        if let (Some(curr), Some(slept)) = (&*current_id, &*slept_id) {
+                            curr == slept
+                        } else { false }
+                    };
+                    let has_any_event = CURRENT_ACTIVE_EVENT_ID.lock().unwrap().is_some();
 
-                    // 1. 백엔드 레벨의 마우스 투과 처리 (윈도우 전용)
                     #[cfg(target_os = "windows")]
                     {
                         use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
@@ -117,8 +147,7 @@ pub fn run() {
                                 if let Ok(win_pos) = win.outer_position() {
                                     let dx = (p.x as f64 - win_pos.x as f64).abs();
                                     let dy = (p.y as f64 - win_pos.y as f64).abs();
-                                    // 창 중앙(고양이 위치) 근처일 때만 클릭 활성화 (약 150px 범위)
-                                    let _ = win.set_ignore_cursor_events(dx > 150.0 || dy > 200.0);
+                                    let _ = win.set_ignore_cursor_events(dx > 120.0 || dy > 120.0);
                                 }
                             }
                         }
@@ -130,18 +159,33 @@ pub fn run() {
                                 let f = m.scale_factor();
                                 curr_x = pos.x as f64 / f;
                                 curr_y = pos.y as f64 / f;
-                                let _ = bwin.set_position(LogicalPosition::new(curr_x, curr_y));
-                                let _ = bwin.set_ignore_cursor_events(true);
+                                // 고양이 왼쪽 위로 버튼 배치 (오프셋 -70, -20)
+                                let _ = bwin.set_position(LogicalPosition::new(curr_x - 70.0, curr_y - 20.0));
                             }
                         }
-                        if last_moving {
-                            let _ = win.emit("cat-move-state", serde_json::json!({"is_moving": false, "facing_right": last_facing_right}));
-                            last_moving = false;
+                        let _ = bwin.set_ignore_cursor_events(!is_manual_waiting);
+                        let state = if is_manual_waiting { "SITTING" } else if !has_any_event { "SLEEPING" } else { "SITTING" };
+                        let payload = serde_json::json!({"state": state, "facing_right": false}).to_string();
+                        if payload != last_state_payload {
+                            let _ = win.emit("cat-state", serde_json::json!({"state": state, "facing_right": false}));
+                            last_state_payload = payload;
                         }
+                        is_init = false;
                         continue;
                     }
                     
                     let _ = bwin.set_ignore_cursor_events(false);
+
+                    if !is_init {
+                        if let Ok(pos) = win.outer_position() {
+                            if let Ok(Some(m)) = win.primary_monitor() {
+                                curr_x = pos.x as f64 / m.scale_factor();
+                                curr_y = pos.y as f64 / m.scale_factor();
+                                if curr_x > 0.1 { is_init = true; }
+                            }
+                        }
+                        if !is_init { continue; }
+                    }
 
                     let mut target_x = curr_x;
                     let mut target_y = curr_y;
@@ -175,17 +219,18 @@ pub fn run() {
 
                     let dx = target_x - curr_x;
                     let dy = target_y - curr_y;
-                    let is_moving = dx.abs() > 1.5 || dy.abs() > 1.5;
-                    let facing_right = if dx > 0.0 { true } else if dx < 0.0 { false } else { last_facing_right };
+                    let is_actually_moving = dx.abs() > 1.5 || dy.abs() > 1.5;
+                    let facing_right = dx > 0.0;
 
                     curr_x += dx * 0.08;
                     curr_y += dy * 0.08;
                     let _ = win.set_position(LogicalPosition::new(curr_x, curr_y));
 
-                    if is_moving != last_moving || facing_right != last_facing_right {
-                        let _ = win.emit("cat-move-state", serde_json::json!({"is_moving": is_moving, "facing_right": facing_right}));
-                        last_moving = is_moving;
-                        last_facing_right = facing_right;
+                    let state = if is_actually_moving { "WALKING" } else { "SITTING" };
+                    let payload = serde_json::json!({"state": state, "facing_right": facing_right}).to_string();
+                    if payload != last_state_payload {
+                        let _ = win.emit("cat-state", serde_json::json!({"state": state, "facing_right": facing_right}));
+                        last_state_payload = payload;
                     }
                 }
             });

@@ -2,12 +2,20 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": ["main", "sleep-button"],
   "permissions": [
     "core:default",
     "opener:default",
     "core:window:allow-set-ignore-cursor-events",
     "core:window:allow-start-dragging",
-    "core:window:allow-set-position"
+    "core:window:allow-set-position",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-get-all-windows",
+    "core:window:allow-set-focus",
+    "core:event:allow-listen",
+    "core:event:allow-emit",
+    "core:window:allow-maximize",
+    "core:window:allow-minimize"
   ]
 }
