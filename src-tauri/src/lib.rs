@@ -74,14 +74,7 @@ fn is_waiting_active() -> bool {
     let slept_id = SLEPT_EVENT_ID.lock().unwrap();
     if let (Some(curr), Some(slept)) = (&*current_id, &*slept_id) {
         curr == slept
-    } else {
-        false
-    }
-}
-
-#[tauri::command]
-fn log_message(msg: String) {
-    println!("[BACKEND LOG] {}", msg);
+    } else { false }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -91,15 +84,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_oauth::init())
         .invoke_handler(tauri::generate_handler![
-            get_all_events, 
-            sync_state, 
-            mark_manual_sleep,
-            reset_manual_sleep,
-            is_waiting_active,
-            log_message,
-            calendar::google::google_login,
-            calendar::google::google_logout,
-            calendar::google::is_google_logged_in
+            get_all_events, sync_state, mark_manual_sleep, reset_manual_sleep, is_waiting_active,
+            calendar::google::google_login, calendar::google::google_logout, calendar::google::is_google_logged_in
         ])
         .setup(|app| {
             let main_win = app.get_webview_window("main").unwrap();
@@ -131,12 +117,11 @@ pub fn run() {
                     let is_manual_waiting = {
                         let current_id = CURRENT_ACTIVE_EVENT_ID.lock().unwrap();
                         let slept_id = SLEPT_EVENT_ID.lock().unwrap();
-                        if let (Some(curr), Some(slept)) = (&*current_id, &*slept_id) {
-                            curr == slept
-                        } else { false }
+                        if let (Some(curr), Some(slept)) = (&*current_id, &*slept_id) { curr == slept } else { false }
                     };
                     let has_any_event = CURRENT_ACTIVE_EVENT_ID.lock().unwrap().is_some();
 
+                    // 1. 윈도우 클릭 투과/허용 정밀 제어
                     #[cfg(target_os = "windows")]
                     {
                         use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
@@ -145,22 +130,29 @@ pub fn run() {
                         unsafe {
                             if GetCursorPos(&mut p) != 0 {
                                 if let Ok(win_pos) = win.outer_position() {
-                                    let dx = (p.x as f64 - win_pos.x as f64).abs();
-                                    let dy = (p.y as f64 - win_pos.y as f64).abs();
-                                    let _ = win.set_ignore_cursor_events(dx > 120.0 || dy > 120.0);
+                                    if let Ok(Some(m)) = win.current_monitor() {
+                                        let f = m.scale_factor();
+                                        let dx = (p.x as f64 - win_pos.x as f64) / f;
+                                        let dy = (p.y as f64 - win_pos.y as f64) / f;
+                                        // 고양이(120x120) 및 하단 위젯/말풍선 영역(y 최대 350) 전체를 아우르는 영역 설정
+                                        // 창 가로 150, 세로 최대 350이므로 이 범위 안이면 무조건 클릭 허용
+                                        let is_inside = dx >= 0.0 && dx <= 150.0 && dy >= 0.0 && dy <= 350.0;
+                                        let _ = win.set_ignore_cursor_events(!is_inside);
+                                    }
                                 }
                             }
                         }
                     }
 
                     if !following {
+                        // 2. 따라다니지 않을 때 (멀티 디스플레이 지원 강화)
                         if let Ok(pos) = win.outer_position() {
-                            if let Ok(Some(m)) = win.primary_monitor() {
+                            if let Ok(Some(m)) = win.current_monitor() {
                                 let f = m.scale_factor();
                                 curr_x = pos.x as f64 / f;
                                 curr_y = pos.y as f64 / f;
-                                // 고양이 왼쪽 위로 버튼 배치 (오프셋 -70, -20)
-                                let _ = bwin.set_position(LogicalPosition::new(curr_x - 70.0, curr_y - 20.0));
+                                // 버튼이 고양이를 따라다님 (오프셋 수정: 왼쪽 상단 -80, -30)
+                                let _ = bwin.set_position(LogicalPosition::new(curr_x - 80.0, curr_y - 30.0));
                             }
                         }
                         let _ = bwin.set_ignore_cursor_events(!is_manual_waiting);
@@ -176,61 +168,58 @@ pub fn run() {
                     
                     let _ = bwin.set_ignore_cursor_events(false);
 
-                    if !is_init {
-                        if let Ok(pos) = win.outer_position() {
-                            if let Ok(Some(m)) = win.primary_monitor() {
-                                curr_x = pos.x as f64 / m.scale_factor();
-                                curr_y = pos.y as f64 / m.scale_factor();
+                    // 3. 팔로잉 모드: 마우스 위치 추적 (현재 모니터 기준)
+                    if let Ok(Some(m)) = win.current_monitor() {
+                        let f = m.scale_factor();
+                        if !is_init {
+                            if let Ok(pos) = win.outer_position() {
+                                curr_x = pos.x as f64 / f; curr_y = pos.y as f64 / f;
                                 if curr_x > 0.1 { is_init = true; }
                             }
                         }
-                        if !is_init { continue; }
-                    }
+                        
+                        let mut target_x = curr_x;
+                        let mut target_y = curr_y;
 
-                    let mut target_x = curr_x;
-                    let mut target_y = curr_y;
-
-                    #[cfg(target_os = "macos")]
-                    {
-                        use core_graphics::event::CGEvent;
-                        use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
-                        if let Ok(src) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState) {
-                            if let Ok(evt) = CGEvent::new(src) {
-                                let p: core_graphics::geometry::CGPoint = evt.location();
-                                target_x = p.x + 20.0; target_y = p.y + 20.0;
-                            }
-                        }
-                    }
-
-                    #[cfg(target_os = "windows")]
-                    {
-                        use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
-                        use windows_sys::Win32::Foundation::POINT;
-                        let mut point = POINT { x: 0, y: 0 };
-                        unsafe {
-                            if GetCursorPos(&mut point) != 0 {
-                                if let Ok(Some(m)) = win.primary_monitor() {
-                                    target_x = point.x as f64 / m.scale_factor() + 20.0;
-                                    target_y = point.y as f64 / m.scale_factor() + 20.0;
+                        #[cfg(target_os = "macos")]
+                        {
+                            use core_graphics::event::CGEvent;
+                            use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+                            if let Ok(src) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState) {
+                                if let Ok(evt) = CGEvent::new(src) {
+                                    let p: core_graphics::geometry::CGPoint = evt.location();
+                                    target_x = p.x + 20.0; target_y = p.y + 20.0;
                                 }
                             }
                         }
-                    }
 
-                    let dx = target_x - curr_x;
-                    let dy = target_y - curr_y;
-                    let is_actually_moving = dx.abs() > 1.5 || dy.abs() > 1.5;
-                    let facing_right = dx > 0.0;
+                        #[cfg(target_os = "windows")]
+                        {
+                            use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
+                            use windows_sys::Win32::Foundation::POINT;
+                            let mut point = POINT { x: 0, y: 0 };
+                            unsafe {
+                                if GetCursorPos(&mut point) != 0 {
+                                    target_x = point.x as f64 / f + 20.0;
+                                    target_y = point.y as f64 / f + 20.0;
+                                }
+                            }
+                        }
 
-                    curr_x += dx * 0.08;
-                    curr_y += dy * 0.08;
-                    let _ = win.set_position(LogicalPosition::new(curr_x, curr_y));
+                        let dx = target_x - curr_x;
+                        let dy = target_y - curr_y;
+                        let is_actually_moving = dx.abs() > 1.5 || dy.abs() > 1.5;
+                        let facing_right = dx > 0.0;
 
-                    let state = if is_actually_moving { "WALKING" } else { "SITTING" };
-                    let payload = serde_json::json!({"state": state, "facing_right": facing_right}).to_string();
-                    if payload != last_state_payload {
-                        let _ = win.emit("cat-state", serde_json::json!({"state": state, "facing_right": facing_right}));
-                        last_state_payload = payload;
+                        curr_x += dx * 0.08; curr_y += dy * 0.08;
+                        let _ = win.set_position(LogicalPosition::new(curr_x, curr_y));
+
+                        let state = if is_actually_moving { "WALKING" } else { "SITTING" };
+                        let payload = serde_json::json!({"state": state, "facing_right": facing_right}).to_string();
+                        if payload != last_state_payload {
+                            let _ = win.emit("cat-state", serde_json::json!({"state": state, "facing_right": facing_right}));
+                            last_state_payload = payload;
+                        }
                     }
                 }
             });
