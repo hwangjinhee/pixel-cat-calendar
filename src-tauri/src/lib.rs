@@ -134,9 +134,12 @@ pub fn run() {
                                         let f = m.scale_factor();
                                         let dx = (p.x as f64 - win_pos.x as f64) / f;
                                         let dy = (p.y as f64 - win_pos.y as f64) / f;
-                                        // 고양이(120x120) 및 하단 위젯/말풍선 영역(y 최대 350) 전체를 아우르는 영역 설정
-                                        // 창 가로 150, 세로 최대 350이므로 이 범위 안이면 무조건 클릭 허용
-                                        let is_inside = dx >= 0.0 && dx <= 150.0 && dy >= 0.0 && dy <= 350.0;
+                                        
+                                        // [핵심 수정] 상태에 따라 클릭 방해 영역을 동적으로 제한
+                                        // 취침 모드(!following && !is_manual_waiting && !has_any_event)일 때는 높이를 150px로 제한
+                                        let max_clickable_dy = if following || is_manual_waiting || has_any_event { 350.0 } else { 150.0 };
+                                        
+                                        let is_inside = dx >= 0.0 && dx <= 150.0 && dy >= 0.0 && dy <= max_clickable_dy;
                                         let _ = win.set_ignore_cursor_events(!is_inside);
                                     }
                                 }
@@ -145,13 +148,11 @@ pub fn run() {
                     }
 
                     if !following {
-                        // 2. 따라다니지 않을 때 (멀티 디스플레이 지원 강화)
                         if let Ok(pos) = win.outer_position() {
                             if let Ok(Some(m)) = win.current_monitor() {
                                 let f = m.scale_factor();
                                 curr_x = pos.x as f64 / f;
                                 curr_y = pos.y as f64 / f;
-                                // 버튼이 고양이를 따라다님 (오프셋 수정: 왼쪽 상단 -80, -30)
                                 let _ = bwin.set_position(LogicalPosition::new(curr_x - 80.0, curr_y - 30.0));
                             }
                         }
@@ -168,7 +169,6 @@ pub fn run() {
                     
                     let _ = bwin.set_ignore_cursor_events(false);
 
-                    // 3. 팔로잉 모드: 마우스 위치 추적 (현재 모니터 기준)
                     if let Ok(Some(m)) = win.current_monitor() {
                         let f = m.scale_factor();
                         if !is_init {
